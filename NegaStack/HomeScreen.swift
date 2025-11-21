@@ -18,25 +18,21 @@ struct HomeScreen: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                // 上半分：カレンダー
-                VStack {
+            ScrollView {
+                VStack(spacing: 0) {
+                    // 上半分：カレンダー
                     CalendarView(
                         currentMonth: $currentMonth,
                         selectedDate: $selectedDate,
                         primaryColor: primaryColor
                     )
-                    .padding(.top, 20)
-                    .padding(.horizontal, 30)
-                }
-                .frame(maxHeight: .infinity)
-                
-                // 下半分
-                VStack(spacing: 20) {
+                    .padding(.top, 16)
+                    .padding(.horizontal, 20)
+                    
                     // 4つのボタン
                     GeometryReader { geometry in
-                        let totalWidth = geometry.size.width - 60 - 24 // padding 30*2 + spacing 8*3
-                        let buttonSize = totalWidth / 4 // 基本サイズ（1/4）
+                        let totalWidth = geometry.size.width - 40 - 24 // padding 20*2 + spacing 8*3
+                        let buttonSize = min(totalWidth / 4, 70) // 基本サイズ（最大70）
                         let pencilButtonSize = buttonSize * 1.3 // えんぴつボタンは1.3倍
                         
                         HStack(spacing: 8) {
@@ -45,7 +41,7 @@ struct HomeScreen: View {
                                 print("Last Time")
                             }) {
                                 Text("Last Time")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(.system(size: 12, weight: .semibold))
                                     .foregroundColor(primaryColor)
                                     .multilineTextAlignment(.center)
                                     .lineLimit(2)
@@ -63,11 +59,11 @@ struct HomeScreen: View {
                             Button(action: {
                                 showLogJournal = true
                             }) {
-                                VStack(spacing: 6) {
+                                VStack(spacing: 4) {
                                     Image(systemName: "pencil")
-                                        .font(.system(size: 32))
+                                        .font(.system(size: 28))
                                     Text("記録する")
-                                        .font(.system(size: 15, weight: .semibold))
+                                        .font(.system(size: 13, weight: .semibold))
                                 }
                                 .foregroundColor(primaryColor)
                             }
@@ -78,7 +74,7 @@ struct HomeScreen: View {
                                 print("Quote")
                             }) {
                                 Text("Quote")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(.system(size: 12, weight: .semibold))
                                     .foregroundColor(Color(hex: "666666"))
                                     .multilineTextAlignment(.center)
                             }
@@ -96,7 +92,7 @@ struct HomeScreen: View {
                                 print("全快")
                             }) {
                                 Text("全快")
-                                    .font(.system(size: 16, weight: .bold))
+                                    .font(.system(size: 14, weight: .bold))
                                     .foregroundColor(.white)
                                     .multilineTextAlignment(.center)
                             }
@@ -105,11 +101,11 @@ struct HomeScreen: View {
                             .clipShape(Circle())
                             .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
                         }
-                        .padding(.horizontal, 30)
-                        .frame(maxHeight: .infinity, alignment: .center)
+                        .padding(.horizontal, 20)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     }
-                    .frame(height: 130)
-                    .padding(.top, 20)
+                    .frame(height: 110)
+                    .padding(.top, 16)
                     
                     // 下部メニュー（背景色付き）
                     VStack(spacing: 0) {
@@ -119,55 +115,51 @@ struct HomeScreen: View {
                             Button(action: {
                                 print("Home")
                             }) {
-                                VStack(spacing: 8) {
+                                VStack(spacing: 6) {
                                     Image(systemName: "house.fill")
-                                        .font(.system(size: 24))
+                                        .font(.system(size: 22))
                                     Text("Home")
-                                        .font(.system(size: 14, weight: .medium))
+                                        .font(.system(size: 13, weight: .medium))
                                 }
                                 .foregroundColor(primaryColor)
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
+                                .padding(.vertical, 12)
                             }
                             
                             // Stackボタン
                             Button(action: {
                                 print("Stack")
                             }) {
-                                VStack(spacing: 8) {
+                                VStack(spacing: 6) {
                                     Image(systemName: "square.stack.3d.up.fill")
-                                        .font(.system(size: 24))
+                                        .font(.system(size: 22))
                                     Text("Stack")
-                                        .font(.system(size: 14, weight: .medium))
+                                        .font(.system(size: 13, weight: .medium))
                                 }
                                 .foregroundColor(primaryColor)
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
+                                .padding(.vertical, 12)
                             }
                             
                             // Pillarボタン
                             Button(action: {
                                 print("Pillar")
                             }) {
-                                VStack(spacing: 8) {
+                                VStack(spacing: 6) {
                                     Image(systemName: "building.columns.fill")
-                                        .font(.system(size: 24))
+                                        .font(.system(size: 22))
                                     Text("Pillar")
-                                        .font(.system(size: 14, weight: .medium))
+                                        .font(.system(size: 13, weight: .medium))
                                 }
                                 .foregroundColor(primaryColor)
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
+                                .padding(.vertical, 12)
                             }
                         }
-                        
-                        Spacer()
                     }
                     .background(Color(hex: "FED5B0"))
+                    .padding(.top, 16)
                 }
-                .frame(maxHeight: .infinity)
-                
-                Spacer()
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -217,22 +209,22 @@ struct CalendarView: View {
     private let daysOfWeek = ["日", "月", "火", "水", "木", "金", "土"]
     
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 12) {
             // 月の切り替えヘッダー
             HStack {
                 Button(action: {
                     changeMonth(by: -1)
                 }) {
                     Image(systemName: "chevron.left")
-                        .font(.title2)
+                        .font(.title3)
                         .foregroundColor(primaryColor)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 40, height: 40)
                 }
                 
                 Spacer()
                 
                 Text(monthYearString)
-                    .font(.title2)
+                    .font(.title3)
                     .fontWeight(.bold)
                     .foregroundColor(primaryColor)
                 
@@ -242,27 +234,27 @@ struct CalendarView: View {
                     changeMonth(by: 1)
                 }) {
                     Image(systemName: "chevron.right")
-                        .font(.title2)
+                        .font(.title3)
                         .foregroundColor(primaryColor)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 40, height: 40)
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 8)
             
             // 曜日ヘッダー
             HStack(spacing: 0) {
                 ForEach(daysOfWeek, id: \.self) { day in
                     Text(day)
-                        .font(.subheadline)
+                        .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundColor(day == "日" ? .red : day == "土" ? .blue : primaryColor)
                         .frame(maxWidth: .infinity)
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 8)
             
             // カレンダーグリッド
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 12) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 8) {
                 ForEach(getAllDatesInMonth(), id: \.self) { date in
                     if let date = date {
                         DayCell(
@@ -277,16 +269,16 @@ struct CalendarView: View {
                     } else {
                         // 空のセル
                         Color.clear
-                            .frame(height: 44)
+                            .frame(height: 36)
                     }
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 8)
         }
-        .padding(.vertical)
+        .padding(.vertical, 12)
         .background(Color.white)
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 6, x: 0, y: 3)
     }
     
     // 月と年の文字列
@@ -343,9 +335,9 @@ struct DayCell: View {
     var body: some View {
         VStack {
             Text("\(calendar.component(.day, from: date))")
-                .font(.system(size: 16, weight: isSelected ? .bold : .regular))
+                .font(.system(size: 14, weight: isSelected ? .bold : .regular))
                 .foregroundColor(textColor)
-                .frame(width: 44, height: 44)
+                .frame(width: 36, height: 36)
                 .background(backgroundColor)
                 .clipShape(Circle())
                 .overlay(

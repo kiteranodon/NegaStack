@@ -119,7 +119,9 @@ struct StartScreen: View {
             HomeScreen()
         }
         .fullScreenCover(isPresented: $showLogJournal) {
-            LogJournal()
+            LogJournal(onQuickStart: {
+                showHomeScreen = true
+            })
         }
     }
 }
