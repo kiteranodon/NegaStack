@@ -7,6 +7,8 @@
 
 import SwiftUI
 import UserNotifications
+import FirebaseCore
+import FirebaseFirestore
 
 // 通知デリゲート
 class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
@@ -36,6 +38,16 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 @main
 struct NegaStackApp: App {
     init() {
+        // Firebase初期化
+        FirebaseApp.configure()
+        
+        // Firestoreの設定
+        let settings = FirestoreSettings()
+        settings.isPersistenceEnabled = true // オフライン対応
+        Firestore.firestore().settings = settings
+        
+        print("✅ Firebase & Firestore初期化完了")
+        
         // 通知デリゲートを設定
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
         

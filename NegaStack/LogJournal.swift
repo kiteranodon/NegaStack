@@ -45,6 +45,9 @@ struct LogJournal: View {
     var onQuickStart: (() -> Void)? = nil
     var onRestStarted: (() -> Void)? = nil
     
+    // Firebase管理
+    private let firebaseManager = FirebaseManager.shared
+    
     private let primaryColor = Color(hex: "007C8A")
     
     // 感情データ
@@ -512,6 +515,8 @@ struct LogJournal: View {
                         HStack(spacing: 12) {
                             // すぐ動き出すボタン
                             Button(action: {
+                                // Firebaseにデータを保存
+                                saveToFirebase(actionType: "quickStart")
                                 showQuickStartAlert = true
                             }) {
                                 VStack(spacing: 6) {
@@ -659,6 +664,9 @@ struct LogJournal: View {
         print("現在時刻: \(Date())")
         print("アラーム時刻: \(alarmTime)")
         
+        // Firebaseにデータを保存
+        saveToFirebase(actionType: "rest")
+        
         // 既存の通知をキャンセル
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["restTimer"])
         
@@ -746,6 +754,42 @@ struct LogJournal: View {
             }
         } else {
             print("❌ エラー: 選択された時刻が過去です")
+        }
+    }
+    
+    // Firebaseにデータを保存
+    private func saveToFirebase(actionType: String) {
+        print("💾 Firebase保存処理開始（actionType: \(actionType)）")
+        
+        // EmotionDataをJournalEntry.EmotionEntryに変換
+        let emotionEntries = selectedEmotions.map { emotion -> JournalEntry.EmotionEntry in
+            let colorHex = emotion.color.toHex()
+            return JournalEntry.EmotionEntry(name: emotion.name, colorHex: colorHex)
+        }
+        
+        // JournalEntryを作成
+        let entry = JournalEntry(
+            date: Date(),
+            negativeFeeling: negativeFeeling,
+            emotions: emotionEntries,
+            thinkings: selectedThinkings,
+            usePhone: usePhone,
+            restActivity: restActivity,
+            alarmTime: actionType == "rest" ? alarmTime : nil,
+            actionType: actionType
+        )
+        
+        // Firebaseに保存
+        firebaseManager.saveJournalEntry(entry) { result in
+            switch result {
+            case .success:
+                print("✅ ジャーナルエントリをFirebaseに保存しました")
+                print("   日付: \(entry.dateKey)")
+                print("   気持ち: \(emotionEntries.map { $0.name }.joined(separator: ", "))")
+                print("   何について: \(selectedThinkings.joined(separator: ", "))")
+            case .failure(let error):
+                print("❌ Firebase保存エラー: \(error.localizedDescription)")
+            }
         }
     }
 }

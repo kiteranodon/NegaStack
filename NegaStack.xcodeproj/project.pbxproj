@@ -6,13 +6,31 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A53F4AF82ED05CA4004AC7FA /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = A53F4AF72ED05CA4004AC7FA /* FirebaseFirestore */; };
+		A53F4AFD2ED07EB2004AC7FA /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = A53F4AFC2ED07EB2004AC7FA /* FirebaseStorage */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		A53F4AD42ECE278E004AC7FA /* NegaStack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NegaStack.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A53F4AF12ED053F0004AC7FA /* Exceptions for "NegaStack" folder in "NegaStack" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A53F4AD32ECE278E004AC7FA /* NegaStack */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A53F4AD62ECE278E004AC7FA /* NegaStack */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A53F4AF12ED053F0004AC7FA /* Exceptions for "NegaStack" folder in "NegaStack" target */,
+			);
 			path = NegaStack;
 			sourceTree = "<group>";
 		};
@@ -23,6 +41,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A53F4AF82ED05CA4004AC7FA /* FirebaseFirestore in Frameworks */,
+				A53F4AFD2ED07EB2004AC7FA /* FirebaseStorage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -33,6 +53,7 @@
 			isa = PBXGroup;
 			children = (
 				A53F4AD62ECE278E004AC7FA /* NegaStack */,
+				A53F4AFB2ED07EB2004AC7FA /* Frameworks */,
 				A53F4AD52ECE278E004AC7FA /* Products */,
 			);
 			sourceTree = "<group>";
@@ -43,6 +64,13 @@
 				A53F4AD42ECE278E004AC7FA /* NegaStack.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A53F4AFB2ED07EB2004AC7FA /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -65,6 +93,8 @@
 			);
 			name = NegaStack;
 			packageProductDependencies = (
+				A53F4AF72ED05CA4004AC7FA /* FirebaseFirestore */,
+				A53F4AFC2ED07EB2004AC7FA /* FirebaseStorage */,
 			);
 			productName = NegaStack;
 			productReference = A53F4AD42ECE278E004AC7FA /* NegaStack.app */;
@@ -94,6 +124,9 @@
 			);
 			mainGroup = A53F4ACB2ECE278E004AC7FA;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A53F4AF62ED05CA4004AC7FA /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A53F4AD52ECE278E004AC7FA /* Products */;
 			projectDirPath = "";
@@ -256,6 +289,7 @@
 				DEVELOPMENT_TEAM = LY63VQZ4NT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NegaStack/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -288,6 +322,7 @@
 				DEVELOPMENT_TEAM = LY63VQZ4NT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NegaStack/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -332,6 +367,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A53F4AF62ED05CA4004AC7FA /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A53F4AF72ED05CA4004AC7FA /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A53F4AF62ED05CA4004AC7FA /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		A53F4AFC2ED07EB2004AC7FA /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A53F4AF62ED05CA4004AC7FA /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A53F4ACC2ECE278E004AC7FA /* Project object */;
 }
