@@ -15,6 +15,9 @@ struct StartScreen: View {
     @State private var showHomeScreen = false
     @State private var showLogJournal = false
     
+    // 全快完了アラート表示用
+    @State private var showFullChargeAlert = false
+    
     // 基本色
     private let primaryColor = Color(hex: "007C8A")
     
@@ -75,8 +78,7 @@ struct StartScreen: View {
                 HStack(spacing: 20) {
                     // 休憩完了ボタン
                     Button(action: {
-                        // アクション（後で実装）
-                        print("休憩完了")
+                        showFullChargeAlert = true
                     }) {
                         HStack(spacing: 8) {
                             Image(systemName: "figure.arms.open")
@@ -127,6 +129,25 @@ struct StartScreen: View {
                     showHomeScreen = true
                 }
             )
+        }
+        .alert("全快完了", isPresented: $showFullChargeAlert) {
+            Button("OK") {
+                // Firebaseに保存
+                let entry = FullChargeEntry(date: Date(), source: "startScreen")
+                FirebaseManager.shared.saveFullChargeEntry(entry) { result in
+                    switch result {
+                    case .success:
+                        print("✅ 全快完了を保存しました")
+                    case .failure(let error):
+                        print("❌ 保存エラー: \(error.localizedDescription)")
+                    }
+                }
+            }
+        } message: {
+            Text("よく休めましたか？辛いときはまた記録してみましょう！")
+        }
+        .onAppear {
+            print("✅ StartScreen表示完了")
         }
     }
 }

@@ -38,18 +38,32 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 @main
 struct NegaStackApp: App {
     init() {
-        // Firebase初期化
-        FirebaseApp.configure()
+        print("========================================")
+        print("🚀 NegaStack アプリ起動開始")
+        print("========================================")
         
-        // Firestoreの設定
-        let settings = FirestoreSettings()
-        settings.isPersistenceEnabled = true // オフライン対応
-        Firestore.firestore().settings = settings
-        
-        print("✅ Firebase & Firestore初期化完了")
+        // 全ての通知をクリア（古い通知を削除）
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+        print("🧹 古い通知をクリアしました")
         
         // 通知デリゲートを設定
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+        print("✅ 通知デリゲート設定完了")
+        
+        // Firebase初期化（バックグラウンドで実行）
+        DispatchQueue.global(qos: .userInitiated).async {
+            print("⏳ Firebase初期化中（バックグラウンド）...")
+            FirebaseApp.configure()
+            print("✅ Firebase初期化完了")
+            
+            // Firestoreの設定
+            print("⏳ Firestore設定中...")
+            let settings = FirestoreSettings()
+            settings.cacheSettings = PersistentCacheSettings() // オフライン対応
+            Firestore.firestore().settings = settings
+            print("✅ Firestore設定完了")
+        }
         
         // 通知権限をリクエスト
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
@@ -60,12 +74,21 @@ struct NegaStackApp: App {
             }
         }
         
-        print("🚀 アプリ起動完了")
+        print("========================================")
+        print("🚀 アプリ起動完了 - UI表示開始")
+        print("========================================")
     }
     
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .onAppear {
+                    print("✅✅✅ ContentViewが表示されました ✅✅✅")
+                    // バックグラウンドでUI表示の確認
+                    DispatchQueue.main.async {
+                        print("✅ メインスレッドでUI更新確認")
+                    }
+                }
         }
     }
 }

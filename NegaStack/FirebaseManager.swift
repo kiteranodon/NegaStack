@@ -170,5 +170,73 @@ class FirebaseManager: ObservableObject {
             }
         }
     }
+    
+    // 全快完了を保存
+    func saveFullChargeEntry(_ entry: FullChargeEntry, completion: @escaping (Result<Void, Error>) -> Void) {
+        let userId = "default_user"
+        
+        print("💚 全快完了をFirebaseに保存開始...")
+        print("   日付キー: \(entry.dateKey)")
+        print("   エントリID: \(entry.id)")
+        print("   ソース: \(entry.source)")
+        
+        // 日毎のドキュメント構造: users/{userId}/journals/{dateKey}/fullCharges/{entryId}
+        let docRef = db.collection("users")
+            .document(userId)
+            .collection("journals")
+            .document(entry.dateKey)
+            .collection("fullCharges")
+            .document(entry.id)
+        
+        docRef.setData(entry.toDictionary()) { error in
+            if let error = error {
+                print("❌ Firebase保存エラー: \(error.localizedDescription)")
+                completion(.failure(error))
+            } else {
+                print("✅ 全快完了をFirebaseに保存成功!")
+                print("   パス: users/\(userId)/journals/\(entry.dateKey)/fullCharges/\(entry.id)")
+                completion(.success(()))
+            }
+        }
+    }
+    
+    // 特定の日の全快完了を取得
+    func getFullChargesForDate(_ date: Date, completion: @escaping (Result<[FullChargeEntry], Error>) -> Void) {
+        let userId = "default_user"
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        let dateKey = formatter.string(from: date)
+        
+        print("📖 \(dateKey)の全快完了を取得中...")
+        
+        db.collection("users")
+            .document(userId)
+            .collection("journals")
+            .document(dateKey)
+            .collection("fullCharges")
+            .order(by: "date", descending: true)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("❌ 取得エラー: \(error.localizedDescription)")
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    print("📭 全快完了が見つかりませんでした")
+                    completion(.success([]))
+                    return
+                }
+                
+                let entries = documents.compactMap { doc -> FullChargeEntry? in
+                    return FullChargeEntry(dictionary: doc.data())
+                }
+                
+                print("✅ \(entries.count)件の全快完了を取得しました")
+                completion(.success(entries))
+            }
+    }
 }
 

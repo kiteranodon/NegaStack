@@ -13,6 +13,9 @@ struct HomeScreen: View {
     @State private var currentMonth = Date()
     @State private var showLogJournal = false
     
+    // 全快完了アラート表示用
+    @State private var showFullChargeAlert = false
+    
     private let primaryColor = Color(hex: "007C8A")
     private let calendar = Calendar.current
     
@@ -89,7 +92,7 @@ struct HomeScreen: View {
                             
                             // 全快ボタン
                             Button(action: {
-                                print("全快")
+                                showFullChargeAlert = true
                             }) {
                                 Text("全快")
                                     .font(.system(size: 14, weight: .bold))
@@ -195,6 +198,25 @@ struct HomeScreen: View {
         .navigationViewStyle(StackNavigationViewStyle())
         .fullScreenCover(isPresented: $showLogJournal) {
             LogJournal()
+        }
+        .alert("全快完了", isPresented: $showFullChargeAlert) {
+            Button("OK") {
+                // Firebaseに保存
+                let entry = FullChargeEntry(date: Date(), source: "homeScreen")
+                FirebaseManager.shared.saveFullChargeEntry(entry) { result in
+                    switch result {
+                    case .success:
+                        print("✅ 全快完了を保存しました")
+                    case .failure(let error):
+                        print("❌ 保存エラー: \(error.localizedDescription)")
+                    }
+                }
+            }
+        } message: {
+            Text("よく休めましたか？辛いときはまた記録してみましょう！")
+        }
+        .onAppear {
+            print("✅ HomeScreen表示完了")
         }
     }
 }

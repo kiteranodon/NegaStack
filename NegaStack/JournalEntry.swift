@@ -109,6 +109,51 @@ struct JournalEntry: Codable {
     }
 }
 
+// 全快完了データモデル
+struct FullChargeEntry: Codable {
+    var id: String = UUID().uuidString
+    var date: Date
+    var source: String // "startScreen" or "homeScreen"
+    
+    // FirestoreのドキュメントIDとして使う日付キー（YYYY-MM-DD形式）
+    var dateKey: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        return formatter.string(from: date)
+    }
+    
+    // Firestoreに保存する用のDictionary
+    func toDictionary() -> [String: Any] {
+        return [
+            "id": id,
+            "date": Timestamp(date: date),
+            "source": source,
+            "type": "fullCharge"
+        ]
+    }
+    
+    // Firestoreのデータから初期化
+    init?(dictionary: [String: Any]) {
+        guard let id = dictionary["id"] as? String,
+              let timestamp = dictionary["date"] as? Timestamp,
+              let source = dictionary["source"] as? String else {
+            return nil
+        }
+        
+        self.id = id
+        self.date = timestamp.dateValue()
+        self.source = source
+    }
+    
+    // 通常の初期化
+    init(date: Date = Date(), source: String) {
+        self.date = date
+        self.source = source
+    }
+}
+
 // Color to Hex 変換用のextension
 extension Color {
     func toHex() -> String {
