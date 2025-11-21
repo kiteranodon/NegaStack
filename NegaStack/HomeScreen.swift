@@ -110,7 +110,59 @@ struct HomeScreen: View {
                     .frame(height: 130)
                     .padding(.top, 20)
                     
-                    Spacer()
+                    // 下部メニュー（背景色付き）
+                    VStack(spacing: 0) {
+                        // 下部メニュー（3つのボタン）
+                        HStack(spacing: 0) {
+                            // Homeボタン
+                            Button(action: {
+                                print("Home")
+                            }) {
+                                VStack(spacing: 8) {
+                                    Image(systemName: "house.fill")
+                                        .font(.system(size: 24))
+                                    Text("Home")
+                                        .font(.system(size: 14, weight: .medium))
+                                }
+                                .foregroundColor(primaryColor)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                            }
+                            
+                            // Stackボタン
+                            Button(action: {
+                                print("Stack")
+                            }) {
+                                VStack(spacing: 8) {
+                                    Image(systemName: "square.stack.3d.up.fill")
+                                        .font(.system(size: 24))
+                                    Text("Stack")
+                                        .font(.system(size: 14, weight: .medium))
+                                }
+                                .foregroundColor(primaryColor)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                            }
+                            
+                            // Pillarボタン
+                            Button(action: {
+                                print("Pillar")
+                            }) {
+                                VStack(spacing: 8) {
+                                    Image(systemName: "building.columns.fill")
+                                        .font(.system(size: 24))
+                                    Text("Pillar")
+                                        .font(.system(size: 14, weight: .medium))
+                                }
+                                .foregroundColor(primaryColor)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                            }
+                        }
+                        
+                        Spacer()
+                    }
+                    .background(Color(hex: "FED5B0"))
                 }
                 .frame(maxHeight: .infinity)
                 
@@ -134,6 +186,16 @@ struct HomeScreen: View {
                     Text("ホーム")
                         .font(.headline)
                         .foregroundColor(primaryColor)
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        print("設定")
+                    }) {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(primaryColor)
+                    }
                 }
             }
         }
