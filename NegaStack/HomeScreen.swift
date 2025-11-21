@@ -11,6 +11,7 @@ struct HomeScreen: View {
     @Environment(\.dismiss) var dismiss
     @State private var selectedDate = Date()
     @State private var currentMonth = Date()
+    @State private var showLogJournal = false
     
     private let primaryColor = Color(hex: "007C8A")
     private let calendar = Calendar.current
@@ -60,7 +61,7 @@ struct HomeScreen: View {
                             
                             // えんぴつボタン（少し大きめ）
                             Button(action: {
-                                print("記録する")
+                                showLogJournal = true
                             }) {
                                 VStack(spacing: 6) {
                                     Image(systemName: "pencil")
@@ -200,6 +201,9 @@ struct HomeScreen: View {
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
+        .fullScreenCover(isPresented: $showLogJournal) {
+            LogJournal()
+        }
     }
 }
 
