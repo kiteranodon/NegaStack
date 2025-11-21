@@ -11,6 +11,9 @@ struct StartScreen: View {
     // ユーザーネーム（後で変更可能）
     @State private var username: String = "ユーザー"
     
+    // ナビゲーション用の状態
+    @State private var showHomeScreen = false
+    
     // 基本色
     private let primaryColor = Color(hex: "007C8A")
     
@@ -91,8 +94,7 @@ struct StartScreen: View {
                     
                     // ホームボタン
                     Button(action: {
-                        // アクション（後で実装）
-                        print("ホーム")
+                        showHomeScreen = true
                     }) {
                         HStack(spacing: 8) {
                             Image(systemName: "house.fill")
@@ -112,6 +114,9 @@ struct StartScreen: View {
                 
                 Spacer()
             }
+        }
+        .fullScreenCover(isPresented: $showHomeScreen) {
+            HomeScreen()
         }
     }
 }
