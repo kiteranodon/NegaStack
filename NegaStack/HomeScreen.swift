@@ -12,6 +12,7 @@ struct HomeScreen: View {
     @State private var selectedDate = Date()
     @State private var currentMonth = Date()
     @State private var showLogJournal = false
+    @State private var showStackLog = false
     
     // 全快完了アラート表示用
     @State private var showFullChargeAlert = false
@@ -131,7 +132,7 @@ struct HomeScreen: View {
                             
                             // Stackボタン
                             Button(action: {
-                                print("Stack")
+                                showStackLog = true
                             }) {
                                 VStack(spacing: 6) {
                                     Image(systemName: "square.stack.3d.up.fill")
@@ -198,6 +199,9 @@ struct HomeScreen: View {
         .navigationViewStyle(StackNavigationViewStyle())
         .fullScreenCover(isPresented: $showLogJournal) {
             LogJournal()
+        }
+        .fullScreenCover(isPresented: $showStackLog) {
+            StackLog()
         }
         .alert("全快完了", isPresented: $showFullChargeAlert) {
             Button("OK") {

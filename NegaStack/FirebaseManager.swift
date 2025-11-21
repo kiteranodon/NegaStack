@@ -238,5 +238,35 @@ class FirebaseManager: ObservableObject {
                 completion(.success(entries))
             }
     }
+    
+    // すべての全快完了を取得（最新順）
+    func getAllFullCharges(limit: Int = 50, completion: @escaping (Result<[FullChargeEntry], Error>) -> Void) {
+        print("📖 すべての全快完了を取得中（最大\(limit)件）...")
+        
+        // collectionGroupは全てのfullChargesサブコレクションを横断検索
+        db.collectionGroup("fullCharges")
+            .order(by: "date", descending: true)
+            .limit(to: limit)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("❌ 取得エラー: \(error.localizedDescription)")
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    print("📭 全快完了が見つかりませんでした")
+                    completion(.success([]))
+                    return
+                }
+                
+                let entries = documents.compactMap { doc -> FullChargeEntry? in
+                    return FullChargeEntry(dictionary: doc.data())
+                }
+                
+                print("✅ \(entries.count)件の全快完了を取得しました")
+                completion(.success(entries))
+            }
+    }
 }
 
