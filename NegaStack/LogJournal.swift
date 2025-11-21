@@ -43,6 +43,7 @@ struct LogJournal: View {
     
     // HomeScreenへの遷移用クロージャー
     var onQuickStart: (() -> Void)? = nil
+    var onRestStarted: (() -> Void)? = nil
     
     private let primaryColor = Color(hex: "007C8A")
     
@@ -578,7 +579,11 @@ struct LogJournal: View {
         .navigationViewStyle(StackNavigationViewStyle())
         .alert("休憩が始まりました", isPresented: $showRestStartedAlert) {
             Button("OK") {
-                // アラートを閉じる
+                // HomeScreenに遷移
+                if let onRestStarted = onRestStarted {
+                    onRestStarted()
+                }
+                dismiss()
             }
         } message: {
             Text("設定した時刻にアラームでお知らせします。\nゆっくり休んでくださいね。")
