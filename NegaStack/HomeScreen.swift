@@ -22,6 +22,7 @@ struct HomeScreen: View {
     // 歩数データ
     @State private var stepCount: Double?
     @State private var stepCountAuthorized = false
+    @State private var stepCountByDate: [String: Double] = [:] // 日付ごとの歩数データ
     
     private let primaryColor = Color(hex: "007C8A")
     private let calendar = Calendar.current
@@ -79,7 +80,8 @@ struct HomeScreen: View {
                     selectedDate: $selectedDate,
                     primaryColor: primaryColor,
                     hasRecordByDate: hasRecordByDate,
-                    hasFullChargeByDate: hasFullChargeByDate
+                    hasFullChargeByDate: hasFullChargeByDate,
+                    stepCountByDate: stepCountByDate
                 )
                 .padding(.top, 12)
                 .padding(.horizontal, 20)
@@ -316,6 +318,43 @@ struct HomeScreen: View {
                 }
             }
         }
+        
+        // 歩数データを取得（権限がある場合）
+        if stepCountAuthorized {
+            loadMonthStepCounts(startDate: startDate, endDate: endDate)
+        }
+    }
+    
+    // 月の歩数データを読み込む
+    private func loadMonthStepCounts(startDate: Date, endDate: Date) {
+        print("🚶 HomeScreen: 月の歩数データ取得中...")
+        
+        stepCountManager.fetchStepCounts(from: startDate, to: endDate) { stepsByDate, error in
+            if let error = error {
+                print("❌ 月の歩数データ取得エラー: \(error.localizedDescription)")
+                return
+            }
+            
+            if let stepsByDate = stepsByDate {
+                // Date -> String に変換
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd"
+                formatter.locale = Locale(identifier: "ja_JP")
+                formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+                
+                var stepCountsByDateKey: [String: Double] = [:]
+                for (date, steps) in stepsByDate {
+                    let dateKey = formatter.string(from: date)
+                    stepCountsByDateKey[dateKey] = steps
+                    print("   🚶 \(dateKey): \(steps)歩")
+                }
+                
+                DispatchQueue.main.async {
+                    self.stepCountByDate = stepCountsByDateKey
+                    print("✅ HomeScreen: \(stepCountsByDateKey.count)日分の歩数データを取得")
+                }
+            }
+        }
     }
     
     // 歩数データの権限リクエスト
@@ -333,6 +372,11 @@ struct HomeScreen: View {
                 if success {
                     print("🚶 初回の歩数データを取得します...")
                     self.loadStepCount(for: self.selectedDate)
+                    
+                    // 月の歩数データも取得
+                    if let monthInterval = self.calendar.dateInterval(of: .month, for: self.currentMonth) {
+                        self.loadMonthStepCounts(startDate: monthInterval.start, endDate: monthInterval.end)
+                    }
                     
                     // リアルタイム監視を開始
                     self.stepCountManager.startObservingSteps { steps in
@@ -573,6 +617,7 @@ struct CalendarView: View {
     let primaryColor: Color
     let hasRecordByDate: Set<String>
     let hasFullChargeByDate: Set<String>
+    let stepCountByDate: [String: Double]
     
     private let calendar = Calendar.current
     private let daysOfWeek = ["日", "月", "火", "水", "木", "金", "土"]
@@ -635,7 +680,8 @@ struct CalendarView: View {
                                 currentMonth: currentMonth,
                                 primaryColor: primaryColor,
                                 hasRecordByDate: hasRecordByDate,
-                                hasFullChargeByDate: hasFullChargeByDate
+                                hasFullChargeByDate: hasFullChargeByDate,
+                                stepCountByDate: stepCountByDate
                             )
                             .id(index)
                         }
@@ -750,6 +796,7 @@ struct WeekRow: View {
     let primaryColor: Color
     let hasRecordByDate: Set<String>
     let hasFullChargeByDate: Set<String>
+    let stepCountByDate: [String: Double]
     
     private let calendar = Calendar.current
     
@@ -764,7 +811,8 @@ struct WeekRow: View {
                         isInCurrentMonth: calendar.isDate(date, equalTo: currentMonth, toGranularity: .month),
                         primaryColor: primaryColor,
                         hasRecord: hasRecordForDate(date),
-                        hasFullCharge: hasFullChargeForDate(date)
+                        hasFullCharge: hasFullChargeForDate(date),
+                        hasHighStepCount: hasHighStepCountForDate(date)
                     )
                     .onTapGesture {
                         selectedDate = date
@@ -797,6 +845,19 @@ struct WeekRow: View {
         let dateKey = formatter.string(from: date)
         return hasFullChargeByDate.contains(dateKey)
     }
+    
+    private func hasHighStepCountForDate(_ date: Date) -> Bool {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        let dateKey = formatter.string(from: date)
+        
+        if let steps = stepCountByDate[dateKey] {
+            return steps >= 5000
+        }
+        return false
+    }
 }
 
 // 日付セル
@@ -808,6 +869,7 @@ struct DayCell: View {
     let primaryColor: Color
     let hasRecord: Bool
     let hasFullCharge: Bool
+    let hasHighStepCount: Bool
     
     private let calendar = Calendar.current
     
@@ -834,6 +896,11 @@ struct DayCell: View {
                 if hasFullCharge {
                     Circle()
                         .fill(Color.green)
+                        .frame(width: 6, height: 6)
+                }
+                if hasHighStepCount {
+                    Circle()
+                        .fill(Color.orange)
                         .frame(width: 6, height: 6)
                 }
             }
