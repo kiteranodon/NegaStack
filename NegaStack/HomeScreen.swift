@@ -15,6 +15,7 @@ struct HomeScreen: View {
     @State private var showStackLog = false
     @State private var hasRecordByDate: Set<String> = [] // 記録（JournalEntry）がある日付
     @State private var hasFullChargeByDate: Set<String> = [] // 全快完了がある日付
+    @State private var isSleepDeprivedByDate: [String: Bool] = [:] // 日付ごとの寝不足データ
     
     // 全快完了アラート表示用
     @State private var showFullChargeAlert = false
@@ -81,7 +82,8 @@ struct HomeScreen: View {
                     primaryColor: primaryColor,
                     hasRecordByDate: hasRecordByDate,
                     hasFullChargeByDate: hasFullChargeByDate,
-                    stepCountByDate: stepCountByDate
+                    stepCountByDate: stepCountByDate,
+                    isSleepDeprivedByDate: isSleepDeprivedByDate
                 )
                 .padding(.top, 12)
                 .padding(.horizontal, 20)
@@ -283,11 +285,19 @@ struct HomeScreen: View {
         // ジャーナルエントリを取得
         firebaseManager.getEntriesForDateRange(startDate: startDate, endDate: endDate) { result in
             var journalDates: Set<String> = []
+            var sleepDeprivedData: [String: Bool] = [:]
             
             if case .success(let entries) = result {
                 print("✅ HomeScreen: \(entries.count)件のジャーナルエントリを取得")
                 for entry in entries {
                     journalDates.insert(entry.dateKey)
+                    // 寝不足データを抽出（その日の最新エントリのデータを使用）
+                    if let isSleepDeprived = entry.isSleepDeprived {
+                        sleepDeprivedData[entry.dateKey] = isSleepDeprived
+                        if isSleepDeprived {
+                            print("   😴 寝不足: \(entry.dateKey)")
+                        }
+                    }
                 }
             }
             
@@ -306,8 +316,10 @@ struct HomeScreen: View {
                 DispatchQueue.main.async {
                     self.hasRecordByDate = journalDates
                     self.hasFullChargeByDate = fullChargeDates
+                    self.isSleepDeprivedByDate = sleepDeprivedData
                     print("📊 🔵 記録: \(journalDates.sorted())")
                     print("📊 🟢 全快: \(fullChargeDates.sorted())")
+                    print("📊 😴 寝不足: \(sleepDeprivedData.filter { $0.value }.map { $0.key }.sorted())")
                 }
             }
         }
@@ -611,6 +623,7 @@ struct CalendarView: View {
     let hasRecordByDate: Set<String>
     let hasFullChargeByDate: Set<String>
     let stepCountByDate: [String: Double]
+    let isSleepDeprivedByDate: [String: Bool]
     
     private let calendar = Calendar.current
     private let daysOfWeek = ["日", "月", "火", "水", "木", "金", "土"]
@@ -674,7 +687,8 @@ struct CalendarView: View {
                                 primaryColor: primaryColor,
                                 hasRecordByDate: hasRecordByDate,
                                 hasFullChargeByDate: hasFullChargeByDate,
-                                stepCountByDate: stepCountByDate
+                                stepCountByDate: stepCountByDate,
+                                isSleepDeprivedByDate: isSleepDeprivedByDate
                             )
                             .id(index)
                         }
@@ -790,6 +804,7 @@ struct WeekRow: View {
     let hasRecordByDate: Set<String>
     let hasFullChargeByDate: Set<String>
     let stepCountByDate: [String: Double]
+    let isSleepDeprivedByDate: [String: Bool]
     
     private let calendar = Calendar.current
     
@@ -805,7 +820,8 @@ struct WeekRow: View {
                         primaryColor: primaryColor,
                         hasRecord: hasRecordForDate(date),
                         hasFullCharge: hasFullChargeForDate(date),
-                        hasHighStepCount: hasHighStepCountForDate(date)
+                        hasHighStepCount: hasHighStepCountForDate(date),
+                        isSleepDeprived: isSleepDeprivedForDate(date)
                     )
                     .onTapGesture {
                         selectedDate = date
@@ -851,6 +867,16 @@ struct WeekRow: View {
         }
         return false
     }
+    
+    private func isSleepDeprivedForDate(_ date: Date) -> Bool {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        let dateKey = formatter.string(from: date)
+        
+        return isSleepDeprivedByDate[dateKey] == true
+    }
 }
 
 // 日付セル
@@ -863,6 +889,7 @@ struct DayCell: View {
     let hasRecord: Bool
     let hasFullCharge: Bool
     let hasHighStepCount: Bool
+    let isSleepDeprived: Bool
     
     private let calendar = Calendar.current
     
@@ -894,6 +921,11 @@ struct DayCell: View {
                 if hasHighStepCount {
                     Circle()
                         .fill(Color.orange)
+                        .frame(width: 6, height: 6)
+                }
+                if isSleepDeprived {
+                    Circle()
+                        .fill(Color.black)
                         .frame(width: 6, height: 6)
                 }
             }
