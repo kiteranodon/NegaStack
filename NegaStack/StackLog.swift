@@ -211,6 +211,7 @@ struct StackLog: View {
                 JournalEntry.EmotionEntry(name: "眠い", colorHex: "95E1D3")
             ],
             thinkings: ["これはテストデータです", "実際の記録はLogJournalから作成してください"],
+            isSleepDeprived: true,
             usePhone: true,
             restActivity: "音楽を聴いてリラックス",
             alarmTime: Date().addingTimeInterval(3600),

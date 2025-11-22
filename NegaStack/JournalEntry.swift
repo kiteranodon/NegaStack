@@ -16,6 +16,7 @@ struct JournalEntry: Codable {
     var negativeFeeling: String
     var emotions: [EmotionEntry]
     var thinkings: [String]
+    var isSleepDeprived: Bool? // 寝不足かどうか
     var usePhone: Bool?
     var restActivity: String
     var alarmTime: Date?
@@ -48,6 +49,10 @@ struct JournalEntry: Codable {
         ]
         
         // オプショナルの値を適切に処理
+        if let isSleepDeprived = isSleepDeprived {
+            dict["isSleepDeprived"] = isSleepDeprived
+        }
+        
         if let usePhone = usePhone {
             dict["usePhone"] = usePhone
         }
@@ -82,6 +87,7 @@ struct JournalEntry: Codable {
         self.restActivity = restActivity
         self.actionType = actionType
         
+        self.isSleepDeprived = dictionary["isSleepDeprived"] as? Bool
         self.usePhone = dictionary["usePhone"] as? Bool
         
         if let alarmTimestamp = dictionary["alarmTime"] as? Timestamp {
@@ -94,6 +100,7 @@ struct JournalEntry: Codable {
          negativeFeeling: String,
          emotions: [EmotionEntry],
          thinkings: [String],
+         isSleepDeprived: Bool?,
          usePhone: Bool?,
          restActivity: String,
          alarmTime: Date?,
@@ -102,6 +109,7 @@ struct JournalEntry: Codable {
         self.negativeFeeling = negativeFeeling
         self.emotions = emotions
         self.thinkings = thinkings
+        self.isSleepDeprived = isSleepDeprived
         self.usePhone = usePhone
         self.restActivity = restActivity
         self.alarmTime = alarmTime

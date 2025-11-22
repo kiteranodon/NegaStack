@@ -33,6 +33,7 @@ struct LogJournal: View {
     @State private var showColorPicker: Bool = false
     @State private var selectedThinkings: [String] = []
     @State private var customThinking: String = ""
+    @State private var isSleepDeprived: Bool? = nil // true: はい, false: いいえ, nil: 未選択
     @State private var usePhone: Bool? = nil // true: 使う, false: 使わない, nil: 未選択
     @State private var restActivity: String = ""
     @State private var alarmTime: Date = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date()
@@ -76,6 +77,60 @@ struct LogJournal: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
+                    // 寝不足質問セクション
+                    VStack(spacing: 20) {
+                        Text("今日は寝不足ですか？")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundColor(primaryColor)
+                            .padding(.top, 30)
+                        
+                        HStack(spacing: 16) {
+                            // はいボタン
+                            Button(action: {
+                                isSleepDeprived = true
+                            }) {
+                                HStack {
+                                    Image(systemName: isSleepDeprived == true ? "checkmark.circle.fill" : "circle")
+                                        .font(.system(size: 24))
+                                    Text("はい")
+                                        .font(.system(size: 18, weight: .medium))
+                                }
+                                .foregroundColor(isSleepDeprived == true ? primaryColor : .gray)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(isSleepDeprived == true ? primaryColor.opacity(0.1) : Color.white)
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(isSleepDeprived == true ? primaryColor : Color.gray.opacity(0.3), lineWidth: 2)
+                                )
+                            }
+                            
+                            // いいえボタン
+                            Button(action: {
+                                isSleepDeprived = false
+                            }) {
+                                HStack {
+                                    Image(systemName: isSleepDeprived == false ? "checkmark.circle.fill" : "circle")
+                                        .font(.system(size: 24))
+                                    Text("いいえ")
+                                        .font(.system(size: 18, weight: .medium))
+                                }
+                                .foregroundColor(isSleepDeprived == false ? primaryColor : .gray)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(isSleepDeprived == false ? primaryColor.opacity(0.1) : Color.white)
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(isSleepDeprived == false ? primaryColor : Color.gray.opacity(0.3), lineWidth: 2)
+                                )
+                            }
+                        }
+                        .padding(.horizontal, 30)
+                    }
+                    .padding(.bottom, 10)
+                    
                     // 案内テキスト
                     VStack(spacing: 12) {
                         Text("今のネガティブな気持ちを")
@@ -864,6 +919,7 @@ struct LogJournal: View {
             negativeFeeling: negativeFeeling,
             emotions: emotionEntries,
             thinkings: selectedThinkings,
+            isSleepDeprived: isSleepDeprived,
             usePhone: usePhone,
             restActivity: restActivity,
             alarmTime: actionType == "rest" ? alarmTime : nil,

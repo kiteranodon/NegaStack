@@ -91,61 +91,54 @@ struct HomeScreen: View {
                 // 下部：4つのボタンと下部メニュー
                 VStack(spacing: 16) {
                     // 3つのボタン
-                    GeometryReader { geometry in
-                        let totalWidth = geometry.size.width - 40 - 16 // padding 20*2 + spacing 8*2
-                        let buttonSize = min(totalWidth / 3, 70) // 基本サイズ（最大70）
-                        let pencilButtonSize = buttonSize * 1.3 // えんぴつボタンは1.3倍
-                        
-                        HStack(spacing: 8) {
-                            // Quoteボタン
-                            Button(action: {
-                                print("Quote")
-                            }) {
-                                Text("Quote")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(Color(hex: "666666"))
-                                    .multilineTextAlignment(.center)
-                            }
-                            .frame(width: buttonSize, height: buttonSize)
-                            .background(Color.white)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(Color(hex: "CCCCCC"), lineWidth: 2)
-                            )
-                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-                            
-                            // えんぴつボタン（少し大きめ）
-                            Button(action: {
-                                showLogJournal = true
-                            }) {
-                                VStack(spacing: 4) {
-                                    Image(systemName: "pencil")
-                                        .font(.system(size: 28))
-                                    Text("記録する")
-                                        .font(.system(size: 13, weight: .semibold))
-                                }
-                                .foregroundColor(primaryColor)
-                            }
-                            .frame(width: pencilButtonSize, height: pencilButtonSize)
-                            
-                            // 全快ボタン
-                            Button(action: {
-                                showFullChargeAlert = true
-                            }) {
-                                Text("全快")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .multilineTextAlignment(.center)
-                            }
-                            .frame(width: buttonSize, height: buttonSize)
-                            .background(Color(hex: "69b076"))
-                            .clipShape(Circle())
-                            .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
+                    HStack(spacing: 8) {
+                        // Quoteボタン
+                        Button(action: {
+                            print("Quote")
+                        }) {
+                            Text("Quote")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(Color(hex: "666666"))
+                                .multilineTextAlignment(.center)
                         }
-                        .padding(.horizontal, 20)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                        .frame(width: 70, height: 70)
+                        .background(Color.white)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(Color(hex: "CCCCCC"), lineWidth: 2)
+                        )
+                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        
+                        // えんぴつボタン（少し大きめ）
+                        Button(action: {
+                            showLogJournal = true
+                        }) {
+                            VStack(spacing: 4) {
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 28))
+                                Text("記録する")
+                                    .font(.system(size: 13, weight: .semibold))
+                            }
+                            .foregroundColor(primaryColor)
+                        }
+                        .frame(width: 91, height: 91)
+                        
+                        // 全快ボタン
+                        Button(action: {
+                            showFullChargeAlert = true
+                        }) {
+                            Text("全快")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.white)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(width: 70, height: 70)
+                        .background(Color(hex: "69b076"))
+                        .clipShape(Circle())
+                        .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
                     }
+//                    .padding(.horizontal, 20)
                     .frame(height: 110)
                     
                     // 下部メニュー（背景色付き）
