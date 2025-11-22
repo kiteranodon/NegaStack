@@ -311,6 +311,60 @@ class FirebaseManager: ObservableObject {
         }
     }
     
+    // 日付範囲で全快完了を取得（インデックス不要の代替方法）
+    func getFullChargesForDateRange(startDate: Date, endDate: Date, completion: @escaping (Result<[FullChargeEntry], Error>) -> Void) {
+        let userId = "default_user"
+        print("📖 期間(\(startDate) ~ \(endDate))の全快完了を取得中...")
+        print("   代替方法: journalsコレクションから日付別に取得")
+        
+        // 日付範囲内の日付キーを生成
+        let calendar = Calendar.current
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        
+        var dateKeys: [String] = []
+        var currentDate = startDate
+        
+        while currentDate <= endDate {
+            let dateKey = formatter.string(from: currentDate)
+            dateKeys.append(dateKey)
+            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? endDate.addingTimeInterval(86400)
+        }
+        
+        print("   対象日数: \(dateKeys.count)日")
+        
+        // 各日付の全快完了を取得
+        var allEntries: [FullChargeEntry] = []
+        let group = DispatchGroup()
+        
+        for dateKey in dateKeys {
+            group.enter()
+            db.collection("users")
+                .document(userId)
+                .collection("journals")
+                .document(dateKey)
+                .collection("fullCharges")
+                .getDocuments { snapshot, error in
+                    if let error = error {
+                        print("⚠️ [\(dateKey)] 取得エラー: \(error.localizedDescription)")
+                    } else if let documents = snapshot?.documents, !documents.isEmpty {
+                        let entries = documents.compactMap { FullChargeEntry(dictionary: $0.data()) }
+                        allEntries.append(contentsOf: entries)
+                        print("   [\(dateKey)] \(entries.count)件の全快完了を取得")
+                    }
+                    group.leave()
+                }
+        }
+        
+        group.notify(queue: .main) {
+            let sortedEntries = allEntries.sorted { $0.date > $1.date }
+            print("✅ 合計\(sortedEntries.count)件の全快完了を取得しました")
+            completion(.success(sortedEntries))
+        }
+    }
+    
     // 特定の日の全快完了を取得
     func getFullChargesForDate(_ date: Date, completion: @escaping (Result<[FullChargeEntry], Error>) -> Void) {
         let userId = "default_user"

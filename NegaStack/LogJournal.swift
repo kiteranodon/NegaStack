@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 import UserNotifications
 
 // 感情データ構造
@@ -40,6 +41,7 @@ struct LogJournal: View {
     @State private var showQuickStartAlert: Bool = false
     @State private var shouldDismiss: Bool = false
     @FocusState private var isTextEditorFocused: Bool
+    @State private var emotionDataByDate: [String: [JournalEntry.EmotionEntry]] = [:] // 日付別の感情データ
     
     // HomeScreenへの遷移用クロージャー
     var onQuickStart: (() -> Void)? = nil
@@ -446,6 +448,10 @@ struct LogJournal: View {
                             
                             Button(action: {
                                 showTimerPicker.toggle()
+                                if showTimerPicker {
+                                    // ピッカーを開いたときにデータを再読み込み
+                                    loadEmotionDataForMonth()
+                                }
                             }) {
                                 HStack {
                                     Image(systemName: "alarm.fill")
@@ -472,13 +478,30 @@ struct LogJournal: View {
                             }
                             .padding(.horizontal, 30)
                             
-                            // 日時ピッカー
+                            // カスタムカレンダー
                             if showTimerPicker {
                                 VStack(spacing: 16) {
-                                    DatePicker("", selection: $alarmTime, in: Date()..., displayedComponents: [.date, .hourAndMinute])
-                                        .datePickerStyle(.graphical)
+                                    // カスタムカレンダー（感情データ付き）
+                                    EmotionCalendarView(
+                                        selectedDate: $alarmTime,
+                                        emotionDataByDate: emotionDataByDate,
+                                        primaryColor: primaryColor,
+                                        onMonthChange: { month in
+                                            print("📅 カレンダー月変更: \(month)")
+                                            loadEmotionDataForMonth(month)
+                                        }
+                                    )
+                                    .onAppear {
+                                        print("📅 カレンダー初期表示")
+                                        loadEmotionDataForMonth()
+                                    }
+                                    
+                                    // 時刻選択
+                                    DatePicker("時刻", selection: $alarmTime, displayedComponents: [.hourAndMinute])
+                                        .datePickerStyle(.wheel)
                                         .labelsHidden()
                                         .environment(\.locale, Locale(identifier: "ja_JP"))
+                                        .frame(height: 120)
                                     
                                     // 現在時刻からの差分を表示
                                     let timeInterval = alarmTime.timeIntervalSince(Date())
@@ -582,6 +605,9 @@ struct LogJournal: View {
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
+        .onAppear {
+            loadEmotionDataForMonth()
+        }
         .alert("休憩が始まりました", isPresented: $showRestStartedAlert) {
             Button("OK") {
                 // HomeScreenに遷移
@@ -754,6 +780,71 @@ struct LogJournal: View {
             }
         } else {
             print("❌ エラー: 選択された時刻が過去です")
+        }
+    }
+    
+    // 月の感情データを読み込む
+    private func loadEmotionDataForMonth(_ monthDate: Date? = nil) {
+        let calendar = Calendar.current
+        let targetDate = monthDate ?? Date()
+        
+        // 指定月の開始日と終了日を取得
+        guard let monthInterval = calendar.dateInterval(of: .month, for: targetDate) else { return }
+        let startDate = monthInterval.start
+        let endDate = monthInterval.end
+        
+        print("📅 感情データ取得: \(startDate) ~ \(endDate)")
+        
+        // Firebaseから期間内のエントリを取得
+        firebaseManager.getEntriesForDateRange(startDate: startDate, endDate: endDate) { result in
+            switch result {
+            case .success(let entries):
+                print("✅ \(entries.count)件のエントリを取得")
+                
+                // 日付キーでグループ化し、各日付で最新のエントリを選択
+                var dataByDate: [String: [JournalEntry.EmotionEntry]] = [:]
+                var latestEntryByDate: [String: JournalEntry] = [:]
+                
+                for entry in entries {
+                    let dateKey = entry.dateKey
+                    
+                    // その日付の最新エントリを保持（日時が最も新しいもの）
+                    if let existingEntry = latestEntryByDate[dateKey] {
+                        // 既存のエントリと比較して、より新しい方を保持
+                        if entry.date > existingEntry.date {
+                            latestEntryByDate[dateKey] = entry
+                            dataByDate[dateKey] = Array(entry.emotions.prefix(3))
+                            print("   [\(dateKey)] 更新: \(entry.date) の感情データに置き換え")
+                        }
+                    } else {
+                        // まだその日付のエントリがない場合は追加
+                        latestEntryByDate[dateKey] = entry
+                        dataByDate[dateKey] = Array(entry.emotions.prefix(3))
+                    }
+                }
+                
+                DispatchQueue.main.async {
+                    self.emotionDataByDate = dataByDate
+                    print("📊 感情データを\(dataByDate.count)日分読み込みました")
+                    
+                    // デバッグ：取得したデータを詳細表示
+                    for (date, emotions) in dataByDate.sorted(by: { $0.key < $1.key }) {
+                        let emotionNames = emotions.map { $0.name }.joined(separator: ", ")
+                        if let entry = latestEntryByDate[date] {
+                            let timeFormatter = DateFormatter()
+                            timeFormatter.dateFormat = "HH:mm:ss"
+                            timeFormatter.locale = Locale(identifier: "ja_JP")
+                            let timeStr = timeFormatter.string(from: entry.date)
+                            print("   [\(date) \(timeStr)] \(emotionNames)")
+                        } else {
+                            print("   [\(date)] \(emotionNames)")
+                        }
+                    }
+                }
+                
+            case .failure(let error):
+                print("❌ 感情データ取得エラー: \(error.localizedDescription)")
+            }
         }
     }
     
@@ -1021,6 +1112,206 @@ struct ThinkingButton: View {
             }
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// 感情データ付きカスタムカレンダービュー
+struct EmotionCalendarView: View {
+    @Binding var selectedDate: Date
+    let emotionDataByDate: [String: [JournalEntry.EmotionEntry]]
+    let primaryColor: Color
+    var onMonthChange: ((Date) -> Void)? = nil
+    
+    @State private var displayedMonth: Date = Date()
+    
+    private let calendar = Calendar.current
+    private let daysOfWeek = ["日", "月", "火", "水", "木", "金", "土"]
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            // 月選択ヘッダー
+            HStack {
+                Button(action: {
+                    changeMonth(by: -1)
+                }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(primaryColor)
+                }
+                
+                Spacer()
+                
+                Text(monthYearString(from: displayedMonth))
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                Button(action: {
+                    changeMonth(by: 1)
+                }) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(primaryColor)
+                }
+            }
+            .padding(.horizontal)
+            
+            // 曜日ヘッダー
+            HStack(spacing: 0) {
+                ForEach(daysOfWeek, id: \.self) { day in
+                    Text(day)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.gray)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.horizontal, 8)
+            
+            // カレンダーグリッド
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 8) {
+                ForEach(Array(getDaysInMonth().enumerated()), id: \.offset) { index, date in
+                    if let date = date {
+                        CalendarDayCell(
+                            date: date,
+                            isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
+                            isToday: calendar.isDateInToday(date),
+                            isPastDate: date < Date(),
+                            emotions: getEmotionsForDate(date),
+                            primaryColor: primaryColor,
+                            onTap: {
+                                if date >= Date() {
+                                    selectedDate = combineDateAndTime(date: date, time: selectedDate)
+                                }
+                            }
+                        )
+                    } else {
+                        Color.clear
+                            .frame(height: 60)
+                    }
+                }
+            }
+            .padding(.horizontal, 8)
+        }
+        .padding()
+        .onAppear {
+            onMonthChange?(displayedMonth)
+        }
+    }
+    
+    // 日付と時刻を組み合わせる
+    private func combineDateAndTime(date: Date, time: Date) -> Date {
+        let dateComponents = calendar.dateComponents([.year, .month, .day], from: date)
+        let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
+        
+        var combined = DateComponents()
+        combined.year = dateComponents.year
+        combined.month = dateComponents.month
+        combined.day = dateComponents.day
+        combined.hour = timeComponents.hour
+        combined.minute = timeComponents.minute
+        
+        return calendar.date(from: combined) ?? date
+    }
+    
+    // 月を変更
+    private func changeMonth(by value: Int) {
+        if let newMonth = calendar.date(byAdding: .month, value: value, to: displayedMonth) {
+            displayedMonth = newMonth
+            onMonthChange?(newMonth)
+        }
+    }
+    
+    // 月年の文字列
+    private func monthYearString(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年M月"
+        formatter.locale = Locale(identifier: "ja_JP")
+        return formatter.string(from: date)
+    }
+    
+    // 表示する月の全日付を取得
+    private func getDaysInMonth() -> [Date?] {
+        guard let monthInterval = calendar.dateInterval(of: .month, for: displayedMonth),
+              let monthFirstWeekday = calendar.dateComponents([.weekday], from: monthInterval.start).weekday,
+              let monthLastDay = calendar.dateComponents([.day], from: calendar.date(byAdding: .day, value: -1, to: monthInterval.end)!).day
+        else {
+            return []
+        }
+        
+        var days: [Date?] = []
+        
+        // 月の最初の日の前の空白
+        for _ in 0..<(monthFirstWeekday - 1) {
+            days.append(nil)
+        }
+        
+        // 月の各日
+        for day in 1...monthLastDay {
+            if let date = calendar.date(byAdding: .day, value: day - 1, to: monthInterval.start) {
+                days.append(date)
+            }
+        }
+        
+        return days
+    }
+    
+    // 日付の感情データを取得
+    private func getEmotionsForDate(_ date: Date) -> [JournalEntry.EmotionEntry] {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        let dateKey = formatter.string(from: date)
+        
+        return emotionDataByDate[dateKey] ?? []
+    }
+}
+
+// カレンダーの日付セル
+struct CalendarDayCell: View {
+    let date: Date
+    let isSelected: Bool
+    let isToday: Bool
+    let isPastDate: Bool
+    let emotions: [JournalEntry.EmotionEntry]
+    let primaryColor: Color
+    let onTap: () -> Void
+    
+    private let calendar = Calendar.current
+    
+    var body: some View {
+        Button(action: {
+            if !isPastDate {
+                onTap()
+            }
+        }) {
+            VStack(spacing: 4) {
+                // 日付
+                Text("\(calendar.component(.day, from: date))")
+                    .font(.system(size: 16, weight: isSelected ? .bold : .regular))
+                    .foregroundColor(isPastDate ? .gray.opacity(0.5) : (isSelected ? .white : .primary))
+                    .frame(width: 36, height: 36)
+                    .background(
+                        Circle()
+                            .fill(isSelected ? primaryColor : (isToday ? primaryColor.opacity(0.2) : Color.clear))
+                    )
+                
+                // 感情アイコン（最大3つ）
+                HStack(spacing: 2) {
+                    ForEach(Array(emotions.prefix(3).enumerated()), id: \.offset) { index, emotion in
+                        Circle()
+                            .fill(Color(hex: emotion.colorHex))
+                            .frame(width: 6, height: 6)
+                    }
+                }
+                .frame(height: 8)
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+        .frame(height: 60)
+        .opacity(isPastDate ? 0.6 : 1.0)
+        .disabled(isPastDate)
     }
 }
 

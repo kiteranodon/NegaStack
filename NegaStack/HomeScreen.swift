@@ -13,12 +13,15 @@ struct HomeScreen: View {
     @State private var currentMonth = Date()
     @State private var showLogJournal = false
     @State private var showStackLog = false
+    @State private var hasRecordByDate: Set<String> = [] // 記録（JournalEntry）がある日付
+    @State private var hasFullChargeByDate: Set<String> = [] // 全快完了がある日付
     
     // 全快完了アラート表示用
     @State private var showFullChargeAlert = false
     
     private let primaryColor = Color(hex: "007C8A")
     private let calendar = Calendar.current
+    private let firebaseManager = FirebaseManager.shared
     
     var body: some View {
         NavigationView {
@@ -27,7 +30,9 @@ struct HomeScreen: View {
                 CalendarView(
                     currentMonth: $currentMonth,
                     selectedDate: $selectedDate,
-                    primaryColor: primaryColor
+                    primaryColor: primaryColor,
+                    hasRecordByDate: hasRecordByDate,
+                    hasFullChargeByDate: hasFullChargeByDate
                 )
                 .padding(.top, 16)
                 .padding(.horizontal, 20)
@@ -36,46 +41,13 @@ struct HomeScreen: View {
                 
                 // 下部：4つのボタンと下部メニュー
                 VStack(spacing: 16) {
-                    // 4つのボタン
+                    // 3つのボタン
                     GeometryReader { geometry in
-                        let totalWidth = geometry.size.width - 40 - 24 // padding 20*2 + spacing 8*3
-                        let buttonSize = min(totalWidth / 4, 70) // 基本サイズ（最大70）
+                        let totalWidth = geometry.size.width - 40 - 16 // padding 20*2 + spacing 8*2
+                        let buttonSize = min(totalWidth / 3, 70) // 基本サイズ（最大70）
                         let pencilButtonSize = buttonSize * 1.3 // えんぴつボタンは1.3倍
                         
                         HStack(spacing: 8) {
-                            // Last Timeボタン
-                            Button(action: {
-                                print("Last Time")
-                            }) {
-                                Text("Last Time")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(primaryColor)
-                                    .multilineTextAlignment(.center)
-                                    .lineLimit(2)
-                            }
-                            .frame(width: buttonSize, height: buttonSize)
-                            .background(Color.white)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(primaryColor, lineWidth: 2)
-                            )
-                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-                            
-                            // えんぴつボタン（少し大きめ）
-                            Button(action: {
-                                showLogJournal = true
-                            }) {
-                                VStack(spacing: 4) {
-                                    Image(systemName: "pencil")
-                                        .font(.system(size: 28))
-                                    Text("記録する")
-                                        .font(.system(size: 13, weight: .semibold))
-                                }
-                                .foregroundColor(primaryColor)
-                            }
-                            .frame(width: pencilButtonSize, height: pencilButtonSize)
-                            
                             // Quoteボタン
                             Button(action: {
                                 print("Quote")
@@ -93,6 +65,20 @@ struct HomeScreen: View {
                                     .stroke(Color(hex: "CCCCCC"), lineWidth: 2)
                             )
                             .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                            
+                            // えんぴつボタン（少し大きめ）
+                            Button(action: {
+                                showLogJournal = true
+                            }) {
+                                VStack(spacing: 4) {
+                                    Image(systemName: "pencil")
+                                        .font(.system(size: 28))
+                                    Text("記録する")
+                                        .font(.system(size: 13, weight: .semibold))
+                                }
+                                .foregroundColor(primaryColor)
+                            }
+                            .frame(width: pencilButtonSize, height: pencilButtonSize)
                             
                             // 全快ボタン
                             Button(action: {
@@ -224,6 +210,51 @@ struct HomeScreen: View {
         }
         .onAppear {
             print("✅ HomeScreen表示完了")
+            loadRecordData()
+        }
+        .onChange(of: currentMonth) { oldValue, newValue in
+            loadRecordData()
+        }
+    }
+    
+    // 月の記録データを読み込む
+    private func loadRecordData() {
+        guard let monthInterval = calendar.dateInterval(of: .month, for: currentMonth) else { return }
+        let startDate = monthInterval.start
+        let endDate = monthInterval.end
+        
+        print("📅 HomeScreen: 記録データ取得 \(startDate) ~ \(endDate)")
+        
+        // ジャーナルエントリを取得
+        firebaseManager.getEntriesForDateRange(startDate: startDate, endDate: endDate) { result in
+            var journalDates: Set<String> = []
+            
+            if case .success(let entries) = result {
+                print("✅ HomeScreen: \(entries.count)件のジャーナルエントリを取得")
+                for entry in entries {
+                    journalDates.insert(entry.dateKey)
+                }
+            }
+            
+            // 全快完了を取得
+            self.firebaseManager.getFullChargesForDateRange(startDate: startDate, endDate: endDate) { fullChargeResult in
+                var fullChargeDates: Set<String> = []
+                
+                if case .success(let fullCharges) = fullChargeResult {
+                    print("✅ HomeScreen: \(fullCharges.count)件の全快完了を取得")
+                    for fullCharge in fullCharges {
+                        fullChargeDates.insert(fullCharge.dateKey)
+                        print("   🟢 全快完了: \(fullCharge.dateKey)")
+                    }
+                }
+                
+                DispatchQueue.main.async {
+                    self.hasRecordByDate = journalDates
+                    self.hasFullChargeByDate = fullChargeDates
+                    print("📊 🔵 記録: \(journalDates.sorted())")
+                    print("📊 🟢 全快: \(fullChargeDates.sorted())")
+                }
+            }
         }
     }
 }
@@ -233,6 +264,8 @@ struct CalendarView: View {
     @Binding var currentMonth: Date
     @Binding var selectedDate: Date
     let primaryColor: Color
+    let hasRecordByDate: Set<String>
+    let hasFullChargeByDate: Set<String>
     
     private let calendar = Calendar.current
     private let daysOfWeek = ["日", "月", "火", "水", "木", "金", "土"]
@@ -293,7 +326,9 @@ struct CalendarView: View {
                                 week: allWeeks[index],
                                 selectedDate: $selectedDate,
                                 currentMonth: currentMonth,
-                                primaryColor: primaryColor
+                                primaryColor: primaryColor,
+                                hasRecordByDate: hasRecordByDate,
+                                hasFullChargeByDate: hasFullChargeByDate
                             )
                             .id(index)
                         }
@@ -406,6 +441,8 @@ struct WeekRow: View {
     @Binding var selectedDate: Date
     let currentMonth: Date
     let primaryColor: Color
+    let hasRecordByDate: Set<String>
+    let hasFullChargeByDate: Set<String>
     
     private let calendar = Calendar.current
     
@@ -418,7 +455,9 @@ struct WeekRow: View {
                         isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                         isToday: calendar.isDateInToday(date),
                         isInCurrentMonth: calendar.isDate(date, equalTo: currentMonth, toGranularity: .month),
-                        primaryColor: primaryColor
+                        primaryColor: primaryColor,
+                        hasRecord: hasRecordForDate(date),
+                        hasFullCharge: hasFullChargeForDate(date)
                     )
                     .onTapGesture {
                         selectedDate = date
@@ -433,6 +472,24 @@ struct WeekRow: View {
         }
         .padding(.horizontal, 8)
     }
+    
+    private func hasRecordForDate(_ date: Date) -> Bool {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        let dateKey = formatter.string(from: date)
+        return hasRecordByDate.contains(dateKey)
+    }
+    
+    private func hasFullChargeForDate(_ date: Date) -> Bool {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        let dateKey = formatter.string(from: date)
+        return hasFullChargeByDate.contains(dateKey)
+    }
 }
 
 // 日付セル
@@ -442,11 +499,13 @@ struct DayCell: View {
     let isToday: Bool
     let isInCurrentMonth: Bool
     let primaryColor: Color
+    let hasRecord: Bool
+    let hasFullCharge: Bool
     
     private let calendar = Calendar.current
     
     var body: some View {
-        VStack {
+        VStack(spacing: 4) {
             Text("\(calendar.component(.day, from: date))")
                 .font(.system(size: 18, weight: isSelected ? .bold : .regular))
                 .foregroundColor(textColor)
@@ -457,6 +516,21 @@ struct DayCell: View {
                     Circle()
                         .stroke(isToday && !isSelected ? primaryColor : Color.clear, lineWidth: 2)
                 )
+            
+            // 記録インジケーター
+            HStack(spacing: 2) {
+                if hasRecord {
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 6, height: 6)
+                }
+                if hasFullCharge {
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 6, height: 6)
+                }
+            }
+            .frame(height: 8)
         }
     }
     
