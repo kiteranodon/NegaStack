@@ -13,8 +13,16 @@ import FirebaseFirestore
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         print("⏳ Firebase初期化中...")
-        FirebaseApp.configure()
-        print("✅ Firebase初期化完了")
+        
+        // test
+        if FirebaseApp.app() == nil {
+            FirebaseApp.configure()
+            print("✅ Firebase初期化完了")
+
+        }
+        // FirebaseApp.configure()
+
+        //print("✅ Firebase初期化完了")
         
         // Firestoreの設定
         print("⏳ Firestore設定中...")
