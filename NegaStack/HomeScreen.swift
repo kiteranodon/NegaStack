@@ -132,7 +132,9 @@ struct HomeScreen: View {
                             
                             // Stackボタン
                             Button(action: {
+                                print("🔘 Stackボタンがタップされました")
                                 showStackLog = true
+                                print("📱 showStackLog = \(showStackLog)")
                             }) {
                                 VStack(spacing: 6) {
                                     Image(systemName: "square.stack.3d.up.fill")

@@ -141,46 +141,177 @@ struct StackLog: View {
                         .font(.headline)
                         .foregroundColor(primaryColor)
                 }
+                
+                #if DEBUG
+                // デバッグ用：テストデータ作成ボタン（リリースビルドでは非表示）
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        createTestData()
+                    }) {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(primaryColor)
+                    }
+                }
+                #endif
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
         .onAppear {
+            print("🔍 StackLog画面が表示されました")
             loadAllData()
         }
     }
     
     // データを読み込む
     private func loadAllData() {
-        isLoading = true
+        print("🔄 データ読み込み開始...")
         
-        // ジャーナルエントリを取得
-        FirebaseManager.shared.getAllEntries(limit: 100) { result in
-            switch result {
-            case .success(let fetchedEntries):
-                self.entries = fetchedEntries
-                print("✅ \(fetchedEntries.count)件のジャーナルエントリを取得")
-            case .failure(let error):
-                print("❌ エントリ取得エラー: \(error.localizedDescription)")
+        DispatchQueue.main.async {
+            self.isLoading = true
+        }
+        
+        // ジャーナルエントリを取得（最初は30件に制限してメモリを節約）
+        FirebaseManager.shared.getAllEntries(limit: 30) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let fetchedEntries):
+                    print("✅ \(fetchedEntries.count)件のジャーナルエントリを取得")
+                    print("   fetchedEntriesの中身を確認:")
+                    for (index, entry) in fetchedEntries.enumerated() {
+                        print("   [\(index)] ID: \(entry.id), 気持ち: \(entry.negativeFeeling), 日付: \(entry.date)")
+                    }
+                    
+                    self.entries = fetchedEntries
+                    print("   self.entriesに代入完了。現在のentries数: \(self.entries.count)")
+                    
+                    if fetchedEntries.isEmpty {
+                        print("⚠️ ジャーナルエントリが0件です。")
+                    }
+                case .failure(let error):
+                    print("❌ エントリ取得エラー: \(error.localizedDescription)")
+                    self.entries = []
+                }
+                
+                // 全快完了も取得
+                self.loadFullCharges()
             }
-            
-            // 全快完了も取得（全快完了用のメソッドを追加する必要があります）
-            loadFullCharges()
+        }
+    }
+    
+    // テストデータを作成（デバッグ用）
+    private func createTestData() {
+        print("🧪 テストデータを作成中...")
+        
+        // テスト用のジャーナルエントリを作成
+        let testEntry = JournalEntry(
+            date: Date(),
+            negativeFeeling: "テスト：少し疲れた感じです",
+            emotions: [
+                JournalEntry.EmotionEntry(name: "疲れた", colorHex: "FF6B6B"),
+                JournalEntry.EmotionEntry(name: "眠い", colorHex: "95E1D3")
+            ],
+            thinkings: ["これはテストデータです", "実際の記録はLogJournalから作成してください"],
+            usePhone: true,
+            restActivity: "音楽を聴いてリラックス",
+            alarmTime: Date().addingTimeInterval(3600),
+            actionType: "rest"
+        )
+        
+        print("   テストエントリの詳細:")
+        print("   - ID: \(testEntry.id)")
+        print("   - 日付: \(testEntry.date)")
+        print("   - 気持ち: \(testEntry.negativeFeeling)")
+        print("   - dateKey: \(testEntry.dateKey)")
+        
+        // Firebaseに保存
+        FirebaseManager.shared.saveJournalEntry(testEntry) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("✅ テストデータをFirebaseに保存しました！")
+                    print("   3秒後にデータを再読み込みします...")
+                    
+                    // 少し待ってからデータを再読み込み（Firestoreの反映を待つ）
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                        print("🔄 データを再読み込みします...")
+                        self.loadAllData()
+                    }
+                case .failure(let error):
+                    print("❌ テストデータ保存エラー: \(error.localizedDescription)")
+                }
+            }
         }
     }
     
     // 全快完了データを読み込む
     private func loadFullCharges() {
-        FirebaseManager.shared.getAllFullCharges(limit: 100) { result in
-            switch result {
-            case .success(let fetchedEntries):
-                self.fullChargeEntries = fetchedEntries
-                print("✅ \(fetchedEntries.count)件の全快完了を取得")
-            case .failure(let error):
-                print("❌ 全快完了取得エラー: \(error.localizedDescription)")
+        FirebaseManager.shared.getAllFullCharges(limit: 30) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let fetchedEntries):
+                    print("✅ \(fetchedEntries.count)件の全快完了を取得")
+                    self.fullChargeEntries = fetchedEntries
+                    print("   self.fullChargeEntriesに代入完了。現在のfullChargeEntries数: \(self.fullChargeEntries.count)")
+                    
+                    if fetchedEntries.isEmpty {
+                        print("⚠️ 全快完了が0件です。")
+                    }
+                case .failure(let error):
+                    print("❌ 全快完了取得エラー: \(error.localizedDescription)")
+                    self.fullChargeEntries = []
+                }
+                
+                self.isLoading = false
+                
+                let totalItems = self.entries.count + self.fullChargeEntries.count
+                print("📊 最終確認 - 合計: \(totalItems)件のデータ")
+                print("   - ジャーナルエントリ: \(self.entries.count)件")
+                print("   - 全快完了: \(self.fullChargeEntries.count)件")
+                print("   - sortedLogItems.count: \(self.sortedLogItems.count)件")
+                print("   - isLoading: \(self.isLoading)")
+                
+                if totalItems == 0 {
+                    print("💡 データがありません。")
+                } else {
+                    print("🎉 データが存在します！sortedLogItemsを確認:")
+                    for (index, item) in self.sortedLogItems.enumerated() {
+                        switch item {
+                        case .journalEntry(let entry):
+                            print("   [\(index)] ジャーナル: \(entry.negativeFeeling)")
+                        case .fullCharge(let entry):
+                            print("   [\(index)] 全快: \(entry.date)")
+                        }
+                    }
+                }
             }
-            isLoading = false
         }
     }
+}
+
+// DateFormatterキャッシュ（メモリ最適化）
+private class DateFormatters {
+    static let shared = DateFormatters()
+    
+    lazy var dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年M月d日(E)"
+        formatter.locale = Locale(identifier: "ja_JP")
+        return formatter
+    }()
+    
+    lazy var timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.locale = Locale(identifier: "ja_JP")
+        return formatter
+    }()
+    
+    lazy var dateTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年M月d日(E) HH:mm"
+        formatter.locale = Locale(identifier: "ja_JP")
+        return formatter
+    }()
 }
 
 // ジャーナルエントリのカード表示
@@ -282,17 +413,11 @@ struct JournalEntryCard: View {
     }
     
     private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy年M月d日(E)"
-        formatter.locale = Locale(identifier: "ja_JP")
-        return formatter.string(from: date)
+        return DateFormatters.shared.dateFormatter.string(from: date)
     }
     
     private func formatTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        formatter.locale = Locale(identifier: "ja_JP")
-        return formatter.string(from: date)
+        return DateFormatters.shared.timeFormatter.string(from: date)
     }
 }
 
@@ -329,10 +454,7 @@ struct FullChargeCard: View {
     }
     
     private func formatDateTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy年M月d日(E) HH:mm"
-        formatter.locale = Locale(identifier: "ja_JP")
-        return formatter.string(from: date)
+        return DateFormatters.shared.dateTimeFormatter.string(from: date)
     }
 }
 

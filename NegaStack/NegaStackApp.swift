@@ -10,6 +10,23 @@ import UserNotifications
 import FirebaseCore
 import FirebaseFirestore
 
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+        print("⏳ Firebase初期化中...")
+        FirebaseApp.configure()
+        print("✅ Firebase初期化完了")
+        
+        // Firestoreの設定
+        print("⏳ Firestore設定中...")
+        let settings = FirestoreSettings()
+        settings.cacheSettings = PersistentCacheSettings() // オフライン対応
+        Firestore.firestore().settings = settings
+        print("✅ Firestore設定完了")
+        
+        return true
+    }
+} 
+
 // 通知デリゲート
 class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationDelegate()
@@ -51,20 +68,6 @@ struct NegaStackApp: App {
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
         print("✅ 通知デリゲート設定完了")
         
-        // Firebase初期化（バックグラウンドで実行）
-        DispatchQueue.global(qos: .userInitiated).async {
-            print("⏳ Firebase初期化中（バックグラウンド）...")
-            FirebaseApp.configure()
-            print("✅ Firebase初期化完了")
-            
-            // Firestoreの設定
-            print("⏳ Firestore設定中...")
-            let settings = FirestoreSettings()
-            settings.cacheSettings = PersistentCacheSettings() // オフライン対応
-            Firestore.firestore().settings = settings
-            print("✅ Firestore設定完了")
-        }
-        
         // 通知権限をリクエスト
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if let error = error {
@@ -79,6 +82,7 @@ struct NegaStackApp: App {
         print("========================================")
     }
     
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     var body: some Scene {
         WindowGroup {
             ContentView()
