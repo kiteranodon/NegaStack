@@ -19,14 +19,61 @@ struct HomeScreen: View {
     // 全快完了アラート表示用
     @State private var showFullChargeAlert = false
     
+    // 歩数データ
+    @State private var stepCount: Double?
+    @State private var stepCountAuthorized = false
+    
     private let primaryColor = Color(hex: "007C8A")
     private let calendar = Calendar.current
     private let firebaseManager = FirebaseManager.shared
+    private let stepCountManager = StepCountManager.shared
     
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // 上部：カレンダー（拡大）
+                // 歩数表示セクション（カレンダーの上）
+                if stepCountAuthorized, let steps = stepCount {
+                    CompactStepCountView(stepCount: steps, primaryColor: primaryColor)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
+                } else if stepCountAuthorized {
+                    // 権限はあるがデータがまだない場合
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("歩数データを読み込み中...")
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+                    }
+                    .frame(height: 40)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                } else if !stepCountAuthorized && stepCountManager.isHealthKitAvailable {
+                    // 権限がない場合
+                    HStack(spacing: 8) {
+                        Image(systemName: "figure.walk")
+                            .font(.system(size: 16))
+                            .foregroundColor(.gray)
+                        Text("歩数データの権限を許可してください")
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+                        Button("設定") {
+                            if let url = URL(string: "app-settings:") {
+                                // iOS設定画面を開く
+                                #if canImport(UIKit)
+                                UIApplication.shared.open(url)
+                                #endif
+                            }
+                        }
+                        .font(.caption2)
+                        .foregroundColor(primaryColor)
+                    }
+                    .frame(height: 40)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                }
+                
+                // カレンダー
                 CalendarView(
                     currentMonth: $currentMonth,
                     selectedDate: $selectedDate,
@@ -34,7 +81,7 @@ struct HomeScreen: View {
                     hasRecordByDate: hasRecordByDate,
                     hasFullChargeByDate: hasFullChargeByDate
                 )
-                .padding(.top, 16)
+                .padding(.top, 12)
                 .padding(.horizontal, 20)
                 
                 Spacer()
@@ -209,11 +256,24 @@ struct HomeScreen: View {
             Text("よく休めましたか？辛いときはまた記録してみましょう！")
         }
         .onAppear {
+            print("========================================")
             print("✅ HomeScreen表示完了")
+            print("========================================")
             loadRecordData()
+            
+            // HealthKit利用可能性チェック
+            if stepCountManager.isHealthKitAvailable {
+                print("✅ HealthKitは利用可能です")
+                requestStepCountPermission()
+            } else {
+                print("❌ HealthKitが利用できません（シミュレーターまたは非対応デバイス）")
+            }
         }
         .onChange(of: currentMonth) { oldValue, newValue in
             loadRecordData()
+        }
+        .onChange(of: selectedDate) { oldValue, newValue in
+            loadStepCount(for: newValue)
         }
     }
     
@@ -256,6 +316,253 @@ struct HomeScreen: View {
                 }
             }
         }
+    }
+    
+    // 歩数データの権限リクエスト
+    private func requestStepCountPermission() {
+        print("🚶 歩数データの権限をリクエストしています...")
+        stepCountManager.requestAuthorization { success, error in
+            DispatchQueue.main.async {
+                self.stepCountAuthorized = success
+                print("🚶 歩数データ権限結果: \(success ? "✅ 許可" : "❌ 拒否")")
+                
+                if let error = error {
+                    print("❌ 権限エラー: \(error.localizedDescription)")
+                }
+                
+                if success {
+                    print("🚶 初回の歩数データを取得します...")
+                    self.loadStepCount(for: self.selectedDate)
+                    
+                    // リアルタイム監視を開始
+                    self.stepCountManager.startObservingSteps { steps in
+                        print("🔄 歩数が更新されました: \(steps)歩")
+                        if Calendar.current.isDateInToday(self.selectedDate) {
+                            self.stepCount = steps
+                            print("✅ UIを更新しました: \(steps)歩")
+                        }
+                    }
+                } else {
+                    print("⚠️ 歩数データの権限が拒否されたため、歩数表示は利用できません")
+                }
+            }
+        }
+    }
+    
+    // 選択日の歩数を読み込む
+    private func loadStepCount(for date: Date) {
+        guard stepCountAuthorized else {
+            print("⚠️ 歩数データの権限がありません")
+            return
+        }
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年M月d日"
+        formatter.locale = Locale(identifier: "ja_JP")
+        let dateString = formatter.string(from: date)
+        
+        print("🚶 \(dateString)の歩数を取得中...")
+        
+        stepCountManager.fetchStepCount(for: date) { steps, error in
+            DispatchQueue.main.async {
+                if let steps = steps {
+                    self.stepCount = steps
+                    print("✅ 歩数データ取得成功: \(steps)歩")
+                    print("✅ stepCount変数に設定: \(self.stepCount ?? 0)歩")
+                    print("✅ stepCountAuthorized: \(self.stepCountAuthorized)")
+                    print("✅ UIに表示されるはず: stepCountAuthorized && stepCount != nil = \(self.stepCountAuthorized && self.stepCount != nil)")
+                } else if let error = error {
+                    print("❌ 歩数取得エラー: \(error.localizedDescription)")
+                    self.stepCount = nil
+                } else {
+                    print("ℹ️ \(dateString)の歩数データがありません（0歩またはデータなし）")
+                    self.stepCount = 0 // データがない場合は0歩として表示
+                }
+            }
+        }
+    }
+}
+
+// 歩数表示ビュー
+struct StepCountView: View {
+    let stepCount: Double
+    let primaryColor: Color
+    
+    // 歩数の評価
+    private var evaluation: StepEvaluation {
+        switch stepCount {
+        case 0..<3000:
+            return StepEvaluation(level: "もう少し", color: .gray, icon: "figure.walk", message: "軽い散歩はいかがですか？")
+        case 3000..<5000:
+            return StepEvaluation(level: "良いスタート", color: .blue, icon: "figure.walk", message: "いい調子です！")
+        case 5000..<8000:
+            return StepEvaluation(level: "順調", color: .green, icon: "figure.walk", message: "素晴らしい活動量です！")
+        case 8000..<10000:
+            return StepEvaluation(level: "とても良い", color: .orange, icon: "figure.walk.motion", message: "健康的な1日ですね！")
+        default:
+            return StepEvaluation(level: "最高", color: .yellow, icon: "star.fill", message: "驚異的な活動量です！")
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: evaluation.icon)
+                    .foregroundColor(evaluation.color)
+                    .font(.system(size: 20))
+                
+                Text("今日の歩数")
+                    .font(.headline)
+                    .foregroundColor(primaryColor)
+                
+                Spacer()
+                
+                Text(evaluation.level)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(evaluation.color.opacity(0.2))
+                    .foregroundColor(evaluation.color)
+                    .cornerRadius(8)
+            }
+            
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(stepCount.formatted(.number.precision(.fractionLength(0))))
+                    .font(.system(size: 48, weight: .bold))
+                    .foregroundColor(evaluation.color)
+                
+                Text("歩")
+                    .font(.title3)
+                    .foregroundColor(.secondary)
+            }
+            
+            // プログレスバー（10,000歩を目標）
+            VStack(alignment: .leading, spacing: 4) {
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        // 背景
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 8)
+                        
+                        // プログレス
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(
+                                LinearGradient(
+                                    colors: [evaluation.color.opacity(0.7), evaluation.color],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: min(geometry.size.width * CGFloat(stepCount / 10000), geometry.size.width), height: 8)
+                    }
+                }
+                .frame(height: 8)
+                
+                HStack {
+                    Text(evaluation.message)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    if stepCount < 10000 {
+                        Text("目標まであと\(Int(10000 - stepCount))歩")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("目標達成！🎉")
+                            .font(.caption)
+                            .foregroundColor(evaluation.color)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 6, x: 0, y: 3)
+    }
+}
+
+// 歩数評価データ
+struct StepEvaluation {
+    let level: String
+    let color: Color
+    let icon: String
+    let message: String
+}
+
+// コンパクトな歩数表示ビュー
+struct CompactStepCountView: View {
+    let stepCount: Double
+    let primaryColor: Color
+    
+    // 歩数の評価
+    private var evaluation: StepEvaluation {
+        switch stepCount {
+        case 0..<3000:
+            return StepEvaluation(level: "もう少し", color: .gray, icon: "figure.walk", message: "軽い散歩はいかがですか？")
+        case 3000..<5000:
+            return StepEvaluation(level: "良いスタート", color: .blue, icon: "figure.walk", message: "いい調子です！")
+        case 5000..<8000:
+            return StepEvaluation(level: "順調", color: .green, icon: "figure.walk", message: "素晴らしい活動量です！")
+        case 8000..<10000:
+            return StepEvaluation(level: "とても良い", color: .orange, icon: "figure.walk.motion", message: "健康的な1日ですね！")
+        default:
+            return StepEvaluation(level: "最高", color: .yellow, icon: "star.fill", message: "驚異的な活動量です！")
+        }
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // アイコン
+            Image(systemName: evaluation.icon)
+                .foregroundColor(evaluation.color)
+                .font(.system(size: 20))
+            
+            // 歩数表示
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(stepCount.formatted(.number.precision(.fractionLength(0))))
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(evaluation.color)
+                Text("歩")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            // プログレスバー（コンパクト）
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    // 背景
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(height: 4)
+                    
+                    // プログレス
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(evaluation.color)
+                        .frame(width: min(geometry.size.width * CGFloat(stepCount / 10000), geometry.size.width), height: 4)
+                }
+            }
+            .frame(height: 4)
+            
+            // 評価レベル
+            Text(evaluation.level)
+                .font(.caption2)
+                .fontWeight(.semibold)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(evaluation.color.opacity(0.2))
+                .foregroundColor(evaluation.color)
+                .cornerRadius(4)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.white)
+        .cornerRadius(8)
+        .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
     }
 }
 

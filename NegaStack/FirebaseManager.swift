@@ -498,5 +498,117 @@ class FirebaseManager: ObservableObject {
                 }
             }
     }
+    
+    // MARK: - 歩数データ管理
+    
+    /// 歩数データを保存
+    func saveStepCount(_ steps: Double, for date: Date, completion: @escaping (Result<Void, Error>) -> Void) {
+        let userId = "default_user"
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        let dateKey = formatter.string(from: date)
+        
+        print("🚶 歩数データをFirebaseに保存中...")
+        print("   日付: \(dateKey)")
+        print("   歩数: \(steps)歩")
+        
+        let stepData: [String: Any] = [
+            "steps": steps,
+            "date": dateKey,
+            "timestamp": Timestamp(date: date)
+        ]
+        
+        db.collection("users").document(userId)
+            .collection("stepCounts").document(dateKey)
+            .setData(stepData, merge: true) { error in
+                if let error = error {
+                    print("❌ 歩数データ保存エラー: \(error.localizedDescription)")
+                    completion(.failure(error))
+                } else {
+                    print("✅ 歩数データを保存しました: \(steps)歩")
+                    completion(.success(()))
+                }
+            }
+    }
+    
+    /// 特定の日の歩数データを取得
+    func getStepCount(for date: Date, completion: @escaping (Result<Double?, Error>) -> Void) {
+        let userId = "default_user"
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        let dateKey = formatter.string(from: date)
+        
+        print("📖 \(dateKey)の歩数データを取得中...")
+        
+        db.collection("users").document(userId)
+            .collection("stepCounts").document(dateKey)
+            .getDocument { snapshot, error in
+                if let error = error {
+                    print("❌ 歩数データ取得エラー: \(error.localizedDescription)")
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let data = snapshot?.data(),
+                      let steps = data["steps"] as? Double else {
+                    print("📭 歩数データが見つかりませんでした")
+                    completion(.success(nil))
+                    return
+                }
+                
+                print("✅ 歩数データを取得: \(steps)歩")
+                completion(.success(steps))
+            }
+    }
+    
+    /// 期間内の歩数データを取得
+    func getStepCounts(from startDate: Date, to endDate: Date, completion: @escaping (Result<[String: Double], Error>) -> Void) {
+        let userId = "default_user"
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        
+        let startKey = formatter.string(from: startDate)
+        let endKey = formatter.string(from: endDate)
+        
+        print("📖 \(startKey) ~ \(endKey)の歩数データを取得中...")
+        
+        db.collection("users").document(userId)
+            .collection("stepCounts")
+            .whereField("date", isGreaterThanOrEqualTo: startKey)
+            .whereField("date", isLessThanOrEqualTo: endKey)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("❌ 歩数データ取得エラー: \(error.localizedDescription)")
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    print("📭 歩数データが見つかりませんでした")
+                    completion(.success([:]))
+                    return
+                }
+                
+                var stepsByDate: [String: Double] = [:]
+                for document in documents {
+                    if let dateKey = document.data()["date"] as? String,
+                       let steps = document.data()["steps"] as? Double {
+                        stepsByDate[dateKey] = steps
+                    }
+                }
+                
+                print("✅ \(stepsByDate.count)日分の歩数データを取得しました")
+                completion(.success(stepsByDate))
+            }
+    }
 }
 
