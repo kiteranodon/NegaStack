@@ -22,17 +22,20 @@ struct HomeScreen: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 0) {
-                    // 上半分：カレンダー
-                    CalendarView(
-                        currentMonth: $currentMonth,
-                        selectedDate: $selectedDate,
-                        primaryColor: primaryColor
-                    )
-                    .padding(.top, 16)
-                    .padding(.horizontal, 20)
-                    
+            VStack(spacing: 0) {
+                // 上部：カレンダー（拡大）
+                CalendarView(
+                    currentMonth: $currentMonth,
+                    selectedDate: $selectedDate,
+                    primaryColor: primaryColor
+                )
+                .padding(.top, 16)
+                .padding(.horizontal, 20)
+                
+                Spacer()
+                
+                // 下部：4つのボタンと下部メニュー
+                VStack(spacing: 16) {
                     // 4つのボタン
                     GeometryReader { geometry in
                         let totalWidth = geometry.size.width - 40 - 24 // padding 20*2 + spacing 8*3
@@ -109,7 +112,6 @@ struct HomeScreen: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     }
                     .frame(height: 110)
-                    .padding(.top, 16)
                     
                     // 下部メニュー（背景色付き）
                     VStack(spacing: 0) {
@@ -164,7 +166,6 @@ struct HomeScreen: View {
                         }
                     }
                     .background(Color(hex: "FED5B0"))
-                    .padding(.top, 16)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -281,27 +282,41 @@ struct CalendarView: View {
             }
             .padding(.horizontal, 8)
             
-            // カレンダーグリッド
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 8) {
-                ForEach(getAllDatesInMonth(), id: \.self) { date in
-                    if let date = date {
-                        DayCell(
-                            date: date,
-                            isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
-                            isToday: calendar.isDateInToday(date),
-                            primaryColor: primaryColor
-                        )
-                        .onTapGesture {
-                            selectedDate = date
+            // 縦スクロール可能、先週と今週をメインに表示
+            let allWeeks = getAllWeeksInMonth()
+            let lastWeekIndex = getLastWeekIndex()
+            ScrollViewReader { proxy in
+                ScrollView(.vertical, showsIndicators: true) {
+                    LazyVStack(spacing: 24) {
+                        ForEach(0..<allWeeks.count, id: \.self) { index in
+                            WeekRow(
+                                week: allWeeks[index],
+                                selectedDate: $selectedDate,
+                                currentMonth: currentMonth,
+                                primaryColor: primaryColor
+                            )
+                            .id(index)
                         }
-                    } else {
-                        // 空のセル
-                        Color.clear
-                            .frame(height: 36)
+                    }
+                    .padding(.vertical, 16)
+                }
+                .frame(maxHeight: .infinity)
+                .onAppear {
+                    // 先週にスクロール（先週と今週が表示される）
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation {
+                            proxy.scrollTo(lastWeekIndex, anchor: .top)
+                        }
+                    }
+                }
+                .onChange(of: currentMonth) { oldValue, newValue in
+                    // 月が変わったら先週にスクロール
+                    let targetIndex = getLastWeekIndex()
+                    withAnimation {
+                        proxy.scrollTo(targetIndex, anchor: .top)
                     }
                 }
             }
-            .padding(.horizontal, 8)
         }
         .padding(.vertical, 12)
         .background(Color.white)
@@ -324,30 +339,99 @@ struct CalendarView: View {
         }
     }
     
-    // 月の全ての日付を取得（空のセルも含む）
-    private func getAllDatesInMonth() -> [Date?] {
+    // 先週のインデックスを取得
+    private func getLastWeekIndex() -> Int {
+        let allWeeks = getAllWeeksInMonth()
+        let today = Date()
+        
+        // 今週のインデックスを探す
+        for (index, week) in allWeeks.enumerated() {
+            if week.dates.contains(where: { date in
+                guard let date = date else { return false }
+                return calendar.isDate(date, inSameDayAs: today)
+            }) {
+                // 先週のインデックスを返す（最低0）
+                return max(0, index - 1)
+            }
+        }
+        
+        return 0
+    }
+    
+    // 月内の全ての週を取得
+    private func getAllWeeksInMonth() -> [WeekData] {
         guard let monthInterval = calendar.dateInterval(of: .month, for: currentMonth),
               let monthFirstWeek = calendar.dateInterval(of: .weekOfMonth, for: monthInterval.start) else {
             return []
         }
         
-        var dates: [Date?] = []
-        
-        // 月の最初の週の開始日を取得
+        var weeks: [WeekData] = []
         var currentDate = monthFirstWeek.start
         
         // 6週間分のカレンダーを作成
-        for _ in 0..<42 {
-            if calendar.isDate(currentDate, equalTo: currentMonth, toGranularity: .month) {
-                dates.append(currentDate)
-            } else {
-                dates.append(nil)
+        for _ in 0..<6 {
+            var weekDates: [Date?] = []
+            var hasCurrentMonthDate = false
+            
+            for _ in 0..<7 {
+                weekDates.append(currentDate)
+                if calendar.isDate(currentDate, equalTo: currentMonth, toGranularity: .month) {
+                    hasCurrentMonthDate = true
+                }
+                currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
             }
             
-            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+            // 現在の月の日付が含まれている週のみ追加
+            if hasCurrentMonthDate {
+                weeks.append(WeekData(dates: weekDates))
+            }
         }
         
-        return dates
+        return weeks
+    }
+}
+
+// 週のデータ構造
+struct WeekData: Hashable {
+    let dates: [Date?]
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(dates.compactMap { $0?.timeIntervalSince1970 })
+    }
+}
+
+// 週の行
+struct WeekRow: View {
+    let week: WeekData
+    @Binding var selectedDate: Date
+    let currentMonth: Date
+    let primaryColor: Color
+    
+    private let calendar = Calendar.current
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(0..<7, id: \.self) { index in
+                if let date = week.dates[index] {
+                    DayCell(
+                        date: date,
+                        isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
+                        isToday: calendar.isDateInToday(date),
+                        isInCurrentMonth: calendar.isDate(date, equalTo: currentMonth, toGranularity: .month),
+                        primaryColor: primaryColor
+                    )
+                    .onTapGesture {
+                        selectedDate = date
+                    }
+                    .frame(maxWidth: .infinity)
+                } else {
+                    Color.clear
+                        .frame(width: 52, height: 52)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .padding(.horizontal, 8)
     }
 }
 
@@ -356,6 +440,7 @@ struct DayCell: View {
     let date: Date
     let isSelected: Bool
     let isToday: Bool
+    let isInCurrentMonth: Bool
     let primaryColor: Color
     
     private let calendar = Calendar.current
@@ -363,9 +448,9 @@ struct DayCell: View {
     var body: some View {
         VStack {
             Text("\(calendar.component(.day, from: date))")
-                .font(.system(size: 14, weight: isSelected ? .bold : .regular))
+                .font(.system(size: 18, weight: isSelected ? .bold : .regular))
                 .foregroundColor(textColor)
-                .frame(width: 36, height: 36)
+                .frame(width: 52, height: 52)
                 .background(backgroundColor)
                 .clipShape(Circle())
                 .overlay(
@@ -378,6 +463,11 @@ struct DayCell: View {
     private var textColor: Color {
         if isSelected {
             return .white
+        }
+        
+        // 他の月の日付は薄く表示
+        if !isInCurrentMonth {
+            return Color.gray.opacity(0.3)
         }
         
         let weekday = calendar.component(.weekday, from: date)
