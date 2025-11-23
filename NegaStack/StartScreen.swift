@@ -65,8 +65,9 @@ struct StartScreen: View {
                     HStack(spacing: 12) {
                         Image(systemName: "pencil")
                             .font(.system(size: 28))
-                        Text("今日の記録クイックスタート")
+                        Text("今日の記録\nクイックスタート")
                             .font(.system(size: 24, weight: .semibold))
+                            .multilineTextAlignment(.center)
                     }
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
