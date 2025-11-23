@@ -893,7 +893,7 @@ struct WeekRow: View {
                 }
             }
         }
-        .frame(height: 70)
+        .frame(height: 110)
         .padding(.horizontal, 8)
     }
     
@@ -971,30 +971,30 @@ struct DayCell: View {
                         .frame(width: 52, height: 52)
                 )
             
-            // 記録インジケーター
-            HStack(spacing: 2) {
+            // 記録インジケーター（縦並び）
+            VStack(spacing: 2) {
                 if hasRecord {
                     Circle()
                         .fill(Color.blue)
-                        .frame(width: 6, height: 6)
+                        .frame(width: 12, height: 12)
                 }
                 if hasFullCharge {
                     Circle()
                         .fill(Color.green)
-                        .frame(width: 6, height: 6)
+                        .frame(width: 12, height: 12)
                 }
                 if hasHighStepCount {
                     Circle()
                         .fill(Color.orange)
-                        .frame(width: 6, height: 6)
+                        .frame(width: 12, height: 12)
                 }
                 if isSleepDeprived {
                     Circle()
                         .fill(Color.black)
-                        .frame(width: 6, height: 6)
+                        .frame(width: 12, height: 12)
                 }
             }
-            .frame(height: 8)
+            .frame(height: 54)
         }
     }
     
