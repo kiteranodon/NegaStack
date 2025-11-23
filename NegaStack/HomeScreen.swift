@@ -230,7 +230,11 @@ struct HomeScreen: View {
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
-        .fullScreenCover(isPresented: $showLogJournal) {
+        .fullScreenCover(isPresented: $showLogJournal, onDismiss: {
+            // LogJournalが閉じられたらデータを再読み込み
+            print("🔄 LogJournalが閉じられました。データを再読み込みします")
+            loadRecordData()
+        }) {
             LogJournal()
         }
         .fullScreenCover(isPresented: $showStackLog) {
@@ -244,6 +248,8 @@ struct HomeScreen: View {
                     switch result {
                     case .success:
                         print("✅ 全快完了を保存しました")
+                        // 保存後にデータを再読み込み
+                        loadRecordData()
                     case .failure(let error):
                         print("❌ 保存エラー: \(error.localizedDescription)")
                     }
@@ -289,13 +295,29 @@ struct HomeScreen: View {
             
             if case .success(let entries) = result {
                 print("✅ HomeScreen: \(entries.count)件のジャーナルエントリを取得")
+                
+                // 日付ごとに最新のエントリを取得
+                var latestEntryByDate: [String: JournalEntry] = [:]
                 for entry in entries {
-                    journalDates.insert(entry.dateKey)
-                    // 寝不足データを抽出（その日の最新エントリのデータを使用）
+                    let dateKey = entry.dateKey
+                    journalDates.insert(dateKey)
+                    
+                    // その日付の最新エントリを保持（日時が最も新しいもの）
+                    if let existingEntry = latestEntryByDate[dateKey] {
+                        if entry.date > existingEntry.date {
+                            latestEntryByDate[dateKey] = entry
+                        }
+                    } else {
+                        latestEntryByDate[dateKey] = entry
+                    }
+                }
+                
+                // 最新エントリの寝不足データを抽出
+                for (dateKey, entry) in latestEntryByDate {
                     if let isSleepDeprived = entry.isSleepDeprived {
-                        sleepDeprivedData[entry.dateKey] = isSleepDeprived
+                        sleepDeprivedData[dateKey] = isSleepDeprived
                         if isSleepDeprived {
-                            print("   😴 寝不足: \(entry.dateKey)")
+                            print("   😴 寝不足: \(dateKey)")
                         }
                     }
                 }
