@@ -13,6 +13,7 @@ struct StackLog: View {
     @State private var fullChargeEntries: [FullChargeEntry] = []
     @State private var isLoading = true
     @State private var sortAscending = false // デフォルトは降順（新しい順）
+    @State private var showInsights = false // 洞察画面の表示フラグ
     
     private let primaryColor = Color(hex: "007C8A")
     
@@ -142,20 +143,26 @@ struct StackLog: View {
                         .foregroundColor(primaryColor)
                 }
                 
-                #if DEBUG
-                // デバッグ用：テストデータ作成ボタン（リリースビルドでは非表示）
+                // AI洞察ボタン
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
-                        createTestData()
+                        showInsights = true
                     }) {
-                        Image(systemName: "plus.circle.fill")
+                        Text("AI")
+                            .font(.system(size: 16, weight: .bold))
                             .foregroundColor(primaryColor)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(primaryColor.opacity(0.1))
+                            .cornerRadius(6)
                     }
                 }
-                #endif
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
+        .sheet(isPresented: $showInsights) {
+            InsightsView(entries: entries, fullChargeEntries: fullChargeEntries, primaryColor: primaryColor)
+        }
         .onAppear {
             print("🔍 StackLog画面が表示されました")
             loadAllData()
@@ -194,53 +201,6 @@ struct StackLog: View {
                 
                 // 全快完了も取得
                 self.loadFullCharges()
-            }
-        }
-    }
-    
-    // テストデータを作成（デバッグ用）
-    private func createTestData() {
-        print("🧪 テストデータを作成中...")
-        
-        // テスト用のジャーナルエントリを作成
-        let testEntry = JournalEntry(
-            date: Date(),
-            negativeFeeling: "テスト：少し疲れた感じです",
-            emotions: [
-                JournalEntry.EmotionEntry(name: "疲れた", colorHex: "FF6B6B"),
-                JournalEntry.EmotionEntry(name: "眠い", colorHex: "95E1D3")
-            ],
-            thinkings: ["これはテストデータです", "実際の記録はLogJournalから作成してください"],
-            isSleepDeprived: true,
-            nextTask: "レポート作成",
-            taskDurationMinutes: 120,
-            restActivity: "音楽を聴いてリラックス",
-            alarmTime: Date().addingTimeInterval(3600),
-            actionType: "rest"
-        )
-        
-        print("   テストエントリの詳細:")
-        print("   - ID: \(testEntry.id)")
-        print("   - 日付: \(testEntry.date)")
-        print("   - 気持ち: \(testEntry.negativeFeeling)")
-        print("   - dateKey: \(testEntry.dateKey)")
-        
-        // Firebaseに保存
-        FirebaseManager.shared.saveJournalEntry(testEntry) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    print("✅ テストデータをFirebaseに保存しました！")
-                    print("   3秒後にデータを再読み込みします...")
-                    
-                    // 少し待ってからデータを再読み込み（Firestoreの反映を待つ）
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                        print("🔄 データを再読み込みします...")
-                        self.loadAllData()
-                    }
-                case .failure(let error):
-                    print("❌ テストデータ保存エラー: \(error.localizedDescription)")
-                }
             }
         }
     }
@@ -552,5 +512,377 @@ struct FlowLayout: Layout {
 
 #Preview {
     StackLog()
+}
+
+// 洞察レポートビュー
+struct InsightsView: View {
+    @Environment(\.dismiss) var dismiss
+    let entries: [JournalEntry]
+    let fullChargeEntries: [FullChargeEntry]
+    let primaryColor: Color
+    
+    @State private var insightReport: String = ""
+    @State private var isLoading = true
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color(hex: "FFF8F0")
+                    .ignoresSafeArea()
+                
+                if isLoading {
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: primaryColor))
+                            .scaleEffect(1.5)
+                        Text("洞察を生成中...")
+                            .font(.system(size: 16))
+                            .foregroundColor(.gray)
+                    }
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 20) {
+                            Text(insightReport)
+                                .font(.system(size: 16))
+                                .foregroundColor(.primary)
+                                .lineSpacing(8)
+                                .padding()
+                        }
+                        .padding(.bottom, 100)
+                    }
+                    
+                    VStack {
+                        Spacer()
+                        Button(action: {
+                            dismiss()
+                        }) {
+                            Text("OK")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(primaryColor)
+                                .cornerRadius(12)
+                        }
+                        .padding(.horizontal, 30)
+                        .padding(.bottom, 30)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [Color(hex: "FFF8F0").opacity(0), Color(hex: "FFF8F0")]),
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                            .frame(height: 120)
+                            .offset(y: -100)
+                        )
+                    }
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("洞察")
+                        .font(.headline)
+                        .foregroundColor(primaryColor)
+                }
+            }
+        }
+        .onAppear {
+            generateInsights()
+        }
+    }
+    
+    private func generateInsights() {
+        print("🤖 洞察レポート生成開始...")
+        
+        // 非同期で歩数データを取得してから分析
+        DispatchQueue.global(qos: .userInitiated).async {
+            // 歩数データの取得期間を決定
+            let calendar = Calendar.current
+            var earliestDate = Date()
+            var latestDate = Date()
+            
+            if let first = entries.first?.date, let last = entries.last?.date {
+                earliestDate = min(first, last)
+                latestDate = max(first, last)
+            }
+            
+            // 歩数データを取得
+            StepCountManager.shared.fetchStepCounts(from: earliestDate, to: latestDate) { stepsByDate, error in
+                DispatchQueue.main.async {
+                    let report = self.analyzeData(stepsByDate: stepsByDate ?? [:])
+                    self.insightReport = report
+                    self.isLoading = false
+                }
+            }
+        }
+    }
+    
+    private func analyzeData(stepsByDate: [Date: Double]) -> String {
+        var report = ""
+        
+        // データがない場合
+        if entries.isEmpty {
+            return """
+            データがまだ十分にありません。
+            
+            記録を続けることで、あなたの心の状態やスマホ休憩のパターンを分析し、より良いアドバイスをお届けできるようになります。
+            
+            まずは気持ちが辛いときに記録してみましょう。
+            """
+        }
+        
+        // 1. 記入頻度の平均
+        let frequency = calculateFrequency()
+        report += "【記録の習慣】\n"
+        report += frequency + "\n\n"
+        
+        // 2. 内容の要約
+        let summary = summarizeContent()
+        report += "【あなたの心の傾向】\n"
+        report += summary + "\n\n"
+        
+        // 3. 5000歩以上歩いた日の寝不足分析
+        let stepAnalysis = analyzeStepsAndSleep(stepsByDate: stepsByDate)
+        report += "【活動と睡眠の関係】\n"
+        report += stepAnalysis + "\n\n"
+        
+        // 4. 寝不足時の感情分析
+        let sleepEmotionAnalysis = analyzeSleepDeprivedEmotions()
+        report += "【寝不足と感情の関係】\n"
+        report += sleepEmotionAnalysis + "\n\n"
+        
+        // 5. スマホ休憩のアドバイス
+        let advice = generateAdvice()
+        report += "【スマホ休憩のアドバイス】\n"
+        report += advice
+        
+        return report
+    }
+    
+    // 記入頻度の計算
+    private func calculateFrequency() -> String {
+        guard entries.count > 1 else {
+            return "記録はまだ\(entries.count)件です。続けて記録することで、あなたのパターンが見えてきます。"
+        }
+        
+        let calendar = Calendar.current
+        let sortedEntries = entries.sorted { $0.date < $1.date }
+        
+        var intervals: [Double] = []
+        for i in 1..<sortedEntries.count {
+            let interval = sortedEntries[i].date.timeIntervalSince(sortedEntries[i-1].date)
+            intervals.append(interval / 86400) // 日数に変換
+        }
+        
+        let averageInterval = intervals.reduce(0, +) / Double(intervals.count)
+        
+        let totalDays = sortedEntries.last!.date.timeIntervalSince(sortedEntries.first!.date) / 86400
+        
+        if averageInterval < 1 {
+            return "あなたは平均して毎日記録しています（合計\(entries.count)件、\(Int(totalDays))日間）。心と向き合う習慣が素晴らしいですね。"
+        } else if averageInterval < 3 {
+            return "あなたは\(String(format: "%.1f", averageInterval))日に1回のペースで記録しています（合計\(entries.count)件）。コンスタントに自分の気持ちと向き合えています。"
+        } else if averageInterval < 7 {
+            return "あなたは約\(Int(averageInterval))日に1回のペースで記録しています（合計\(entries.count)件）。辛いときに記録する習慣ができつつありますね。"
+        } else {
+            return "あなたは週に1回程度記録しています（合計\(entries.count)件）。無理のないペースで続けていきましょう。"
+        }
+    }
+    
+    // 内容の要約
+    private func summarizeContent() -> String {
+        var summary = ""
+        
+        // 感情の集計
+        var emotionCounts: [String: Int] = [:]
+        for entry in entries {
+            for emotion in entry.emotions {
+                emotionCounts[emotion.name, default: 0] += 1
+            }
+        }
+        
+        let topEmotions = emotionCounts.sorted { $0.value > $1.value }.prefix(3)
+        if !topEmotions.isEmpty {
+            let emotionList = topEmotions.map { "\($0.key)(\($0.value)回)" }.joined(separator: "、")
+            summary += "よく感じている気持ちは「\(emotionList)」です。"
+            summary += "\n"
+        }
+        
+        // 「何について」の集計
+        var thinkingCounts: [String: Int] = [:]
+        for entry in entries {
+            for thinking in entry.thinkings {
+                thinkingCounts[thinking, default: 0] += 1
+            }
+        }
+        
+        let topThinkings = thinkingCounts.sorted { $0.value > $1.value }.prefix(3)
+        if !topThinkings.isEmpty {
+            let thinkingList = topThinkings.map { "\($0.key)(\($0.value)回)" }.joined(separator: "、")
+            summary += "気になっていることは主に「\(thinkingList)」です。"
+            summary += "\n"
+        }
+        
+        // アクションタイプの分析
+        let restCount = entries.filter { $0.actionType == "rest" }.count
+        let quickStartCount = entries.filter { $0.actionType == "quickStart" }.count
+        
+        if restCount > quickStartCount {
+            let percentage = Int(Double(restCount) / Double(entries.count) * 100)
+            summary += "\n\(percentage)%の記録で休憩を選んでいます。自分をいたわる姿勢が素晴らしいです。"
+        } else if quickStartCount > restCount {
+            let percentage = Int(Double(quickStartCount) / Double(entries.count) * 100)
+            summary += "\n\(percentage)%の記録ですぐ動き出すを選んでいます。前向きに行動できていますね。"
+        }
+        
+        return summary.isEmpty ? "データから傾向を分析中です。もう少し記録を続けてみましょう。" : summary
+    }
+    
+    // 5000歩以上と寝不足の関係
+    private func analyzeStepsAndSleep(stepsByDate: [Date: Double]) -> String {
+        guard !stepsByDate.isEmpty else {
+            return "歩数データが取得できませんでした。HealthKitへのアクセスを許可すると、活動量と睡眠の関係を分析できます。"
+        }
+        
+        let calendar = Calendar.current
+        
+        var over5000StepsCount = 0
+        var over5000AndSleepDeprived = 0
+        var over5000AndWellRested = 0
+        
+        for (stepDate, steps) in stepsByDate {
+            if steps >= 5000 {
+                over5000StepsCount += 1
+                
+                // その日のエントリを探す
+                let dateKey = formatDateKey(stepDate)
+                let entriesOnDate = entries.filter { $0.dateKey == dateKey }
+                
+                if let latestEntry = entriesOnDate.sorted(by: { $0.date > $1.date }).first {
+                    if latestEntry.isSleepDeprived == true {
+                        over5000AndSleepDeprived += 1
+                    } else {
+                        over5000AndWellRested += 1
+                    }
+                } else {
+                    // データがない = 睡眠は十分とする
+                    over5000AndWellRested += 1
+                }
+            }
+        }
+        
+        if over5000StepsCount == 0 {
+            return "5000歩以上歩いた日がまだありません。適度な運動は心身の健康に良い影響を与えます。"
+        }
+        
+        let totalAnalyzed = over5000AndSleepDeprived + over5000AndWellRested
+        let wellRestedPercentage = totalAnalyzed > 0 ? Int(Double(over5000AndWellRested) / Double(totalAnalyzed) * 100) : 0
+        
+        var analysis = "5000歩以上歩いた日は\(over5000StepsCount)日あります。"
+        
+        if totalAnalyzed > 0 {
+            analysis += "そのうち\(wellRestedPercentage)%は十分な睡眠が取れていました。"
+            
+            if wellRestedPercentage >= 70 {
+                analysis += "\nよく歩く日は睡眠も十分な傾向があります。良い生活リズムができていますね。"
+            } else if wellRestedPercentage >= 40 {
+                analysis += "\nよく歩く日でも寝不足になることがあるようです。活動と休息のバランスを意識しましょう。"
+            } else {
+                analysis += "\nよく歩く日でも寝不足が多いようです。体を動かした日こそ、しっかり休息を取ることが大切です。"
+            }
+        }
+        
+        return analysis
+    }
+    
+    // 寝不足時の感情分析
+    private func analyzeSleepDeprivedEmotions() -> String {
+        let sleepDeprivedEntries = entries.filter { $0.isSleepDeprived == true }
+        
+        guard !sleepDeprivedEntries.isEmpty else {
+            return "寝不足の記録がまだありません。睡眠は心の健康に大きく影響します。"
+        }
+        
+        var emotionCounts: [String: Int] = [:]
+        for entry in sleepDeprivedEntries {
+            for emotion in entry.emotions {
+                emotionCounts[emotion.name, default: 0] += 1
+            }
+        }
+        
+        let topEmotions = emotionCounts.sorted { $0.value > $1.value }.prefix(3)
+        
+        var analysis = "寝不足のときは、"
+        if !topEmotions.isEmpty {
+            let emotionList = topEmotions.map { $0.key }.joined(separator: "、")
+            analysis += "「\(emotionList)」といった気持ちになりやすいようです。"
+        }
+        
+        analysis += "\n睡眠不足は感情のコントロールを難しくします。辛いと感じたら、まず睡眠時間を確保することを優先してみましょう。"
+        
+        return analysis
+    }
+    
+    // アドバイスを生成
+    private func generateAdvice() -> String {
+        var advice = ""
+        
+        // 休憩活動の分析
+        let restEntries = entries.filter { $0.actionType == "rest" && !$0.restActivity.isEmpty }
+        
+        if !restEntries.isEmpty {
+            var activityCounts: [String: Int] = [:]
+            for entry in restEntries {
+                let activity = entry.restActivity.lowercased()
+                if activity.contains("youtube") || activity.contains("動画") {
+                    activityCounts["動画視聴", default: 0] += 1
+                } else if activity.contains("音楽") {
+                    activityCounts["音楽", default: 0] += 1
+                } else if activity.contains("散歩") || activity.contains("歩く") {
+                    activityCounts["散歩", default: 0] += 1
+                } else if activity.contains("寝る") || activity.contains("睡眠") {
+                    activityCounts["仮眠", default: 0] += 1
+                }
+            }
+            
+            if let topActivity = activityCounts.max(by: { $0.value < $1.value }) {
+                advice += "あなたは\(topActivity.key)で休憩することが多いですね。"
+                advice += "\n"
+            }
+        }
+        
+        // 寝不足状況に応じたアドバイス
+        let sleepDeprivedCount = entries.filter { $0.isSleepDeprived == true }.count
+        let sleepDeprivedRatio = Double(sleepDeprivedCount) / Double(entries.count)
+        
+        if sleepDeprivedRatio > 0.6 {
+            advice += "\n睡眠不足が続いています。スマホ休憩も大切ですが、夜はスマホを早めに切り上げて、しっかり睡眠時間を確保することが最優先です。"
+        } else if sleepDeprivedRatio > 0.3 {
+            advice += "\n時々寝不足になることがあります。疲れを感じたら、スマホ休憩ではなく10-20分の仮眠を取るのも効果的です。"
+        } else {
+            advice += "\n睡眠はよく取れているようです。スマホ休憩では、画面を見続けるのではなく、体を動かしたり目を休めたりする活動も取り入れてみましょう。"
+        }
+        
+        // 全快完了の状況
+        if fullChargeEntries.count > entries.count * 70 / 100 {
+            advice += "\n\n素晴らしいです！多くの記録で全快完了できています。休憩後にしっかり回復できている証拠です。この調子で続けていきましょう。"
+        } else if fullChargeEntries.count > entries.count * 30 / 100 {
+            advice += "\n\n全快完了できることが増えてきています。休息を取ることで気持ちが楽になる実感が持てているのではないでしょうか。"
+        } else {
+            advice += "\n\n休憩後は「全快完了」ボタンを押して、気持ちの変化を記録してみましょう。回復の実感を持つことも大切です。"
+        }
+        
+        return advice
+    }
+    
+    // 日付キーをフォーマット
+    private func formatDateKey(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        return formatter.string(from: date)
+    }
 }
 
