@@ -684,15 +684,18 @@ struct CalendarView: View {
             .padding(.horizontal, 8)
             
             // 曜日ヘッダー
-            HStack(spacing: 0) {
-                ForEach(daysOfWeek, id: \.self) { day in
-                    Text(day)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(day == "日" ? .red : day == "土" ? .blue : primaryColor)
-                        .frame(maxWidth: .infinity)
+            GeometryReader { geometry in
+                HStack(spacing: 0) {
+                    ForEach(daysOfWeek, id: \.self) { day in
+                        Text(day)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(day == "日" ? .red : day == "土" ? .blue : primaryColor)
+                            .frame(width: geometry.size.width / 7)
+                    }
                 }
             }
+            .frame(height: 20)
             .padding(.horizontal, 8)
             
             // 縦スクロール可能、先週と今週をメインに表示
@@ -831,31 +834,33 @@ struct WeekRow: View {
     private let calendar = Calendar.current
     
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(0..<7, id: \.self) { index in
-                if let date = week.dates[index] {
-                    DayCell(
-                        date: date,
-                        isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
-                        isToday: calendar.isDateInToday(date),
-                        isInCurrentMonth: calendar.isDate(date, equalTo: currentMonth, toGranularity: .month),
-                        primaryColor: primaryColor,
-                        hasRecord: hasRecordForDate(date),
-                        hasFullCharge: hasFullChargeForDate(date),
-                        hasHighStepCount: hasHighStepCountForDate(date),
-                        isSleepDeprived: isSleepDeprivedForDate(date)
-                    )
-                    .onTapGesture {
-                        selectedDate = date
+        GeometryReader { geometry in
+            HStack(spacing: 0) {
+                ForEach(0..<7, id: \.self) { index in
+                    if let date = week.dates[index] {
+                        DayCell(
+                            date: date,
+                            isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
+                            isToday: calendar.isDateInToday(date),
+                            isInCurrentMonth: calendar.isDate(date, equalTo: currentMonth, toGranularity: .month),
+                            primaryColor: primaryColor,
+                            hasRecord: hasRecordForDate(date),
+                            hasFullCharge: hasFullChargeForDate(date),
+                            hasHighStepCount: hasHighStepCountForDate(date),
+                            isSleepDeprived: isSleepDeprivedForDate(date)
+                        )
+                        .onTapGesture {
+                            selectedDate = date
+                        }
+                        .frame(width: geometry.size.width / 7)
+                    } else {
+                        Color.clear
+                            .frame(width: geometry.size.width / 7, height: 52)
                     }
-                    .frame(maxWidth: .infinity)
-                } else {
-                    Color.clear
-                        .frame(width: 52, height: 52)
-                        .frame(maxWidth: .infinity)
                 }
             }
         }
+        .frame(height: 70)
         .padding(.horizontal, 8)
     }
     
@@ -920,12 +925,17 @@ struct DayCell: View {
             Text("\(calendar.component(.day, from: date))")
                 .font(.system(size: 18, weight: isSelected ? .bold : .regular))
                 .foregroundColor(textColor)
-                .frame(width: 52, height: 52)
-                .background(backgroundColor)
-                .clipShape(Circle())
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(
+                    Circle()
+                        .fill(backgroundColor)
+                        .frame(width: 52, height: 52)
+                )
                 .overlay(
                     Circle()
                         .stroke(isToday && !isSelected ? primaryColor : Color.clear, lineWidth: 2)
+                        .frame(width: 52, height: 52)
                 )
             
             // 記録インジケーター
