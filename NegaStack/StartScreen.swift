@@ -18,6 +18,9 @@ struct StartScreen: View {
     // 全快完了アラート表示用
     @State private var showFullChargeAlert = false
     
+    // ログイン画面表示用
+    @State private var showLoginSheet = false
+    
     // 基本色
     private let primaryColor = Color(hex: "007C8A")
     
@@ -146,8 +149,12 @@ struct StartScreen: View {
         } message: {
             Text("よく休めましたか？辛いときはまた記録してみましょう！")
         }
+        .sheet(isPresented: $showLoginSheet) {
+            LoginSheet(isPresented: $showLoginSheet)
+        }
         .onAppear {
             print("✅ StartScreen表示完了")
+            showLoginSheet = true
         }
     }
 }
@@ -203,6 +210,76 @@ struct StratumLayer: View {
             }
         }
         .frame(height: totalHeight * height)
+    }
+}
+
+// ログイン画面
+struct LoginSheet: View {
+    @Binding var isPresented: Bool
+    @State private var idText: String = ""
+    @State private var passwordText: String = ""
+    
+    private let primaryColor = Color(hex: "007C8A")
+    
+    var body: some View {
+        VStack(spacing: 30) {
+            Spacer()
+            
+            // タイトル
+            Text("ログイン")
+                .font(.system(size: 32, weight: .bold))
+                .foregroundColor(primaryColor)
+            
+            // ID入力
+            VStack(alignment: .leading, spacing: 8) {
+                Text("ID")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(primaryColor)
+                
+                TextField("IDを入力", text: $idText)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .font(.system(size: 16))
+                    .padding(.horizontal)
+            }
+            .padding(.horizontal, 30)
+            
+            // PASSWORD入力
+            VStack(alignment: .leading, spacing: 8) {
+                Text("PASSWORD")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(primaryColor)
+                
+                SecureField("パスワードを入力", text: $passwordText)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .font(.system(size: 16))
+                    .padding(.horizontal)
+            }
+            .padding(.horizontal, 30)
+            
+            // OKボタン
+            Button(action: {
+                // 両方のフィールドに文字が入力されていれば3秒後にシートを閉じる
+                if !idText.isEmpty && !passwordText.isEmpty {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                        isPresented = false
+                    }
+                }
+            }) {
+                Text("OK")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background((!idText.isEmpty && !passwordText.isEmpty) ? primaryColor : Color.gray)
+                    .cornerRadius(12)
+            }
+            .padding(.horizontal, 30)
+            .disabled(idText.isEmpty || passwordText.isEmpty)
+            
+            Spacer()
+        }
+        .padding(.vertical, 40)
+        .background(Color.white)
     }
 }
 
