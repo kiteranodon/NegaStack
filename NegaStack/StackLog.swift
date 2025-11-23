@@ -598,7 +598,6 @@ struct InsightsView: View {
         // 非同期で歩数データを取得してから分析
         DispatchQueue.global(qos: .userInitiated).async {
             // 歩数データの取得期間を決定
-            let calendar = Calendar.current
             var earliestDate = Date()
             var latestDate = Date()
             
@@ -666,7 +665,6 @@ struct InsightsView: View {
             return "記録はまだ\(entries.count)件です。続けて記録することで、あなたのパターンが見えてきます。"
         }
         
-        let calendar = Calendar.current
         let sortedEntries = entries.sorted { $0.date < $1.date }
         
         var intervals: [Double] = []
@@ -744,8 +742,6 @@ struct InsightsView: View {
         guard !stepsByDate.isEmpty else {
             return "歩数データが取得できませんでした。HealthKitへのアクセスを許可すると、活動量と睡眠の関係を分析できます。"
         }
-        
-        let calendar = Calendar.current
         
         var over5000StepsCount = 0
         var over5000AndSleepDeprived = 0
