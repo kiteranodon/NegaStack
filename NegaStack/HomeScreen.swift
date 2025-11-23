@@ -262,6 +262,7 @@ struct HomeScreen: View {
             print("========================================")
             print("✅ HomeScreen表示完了")
             print("========================================")
+            
             loadRecordData()
             
             // HealthKit利用可能性チェック
@@ -342,6 +343,9 @@ struct HomeScreen: View {
                     print("📊 🔵 記録: \(journalDates.sorted())")
                     print("📊 🟢 全快: \(fullChargeDates.sorted())")
                     print("📊 😴 寝不足: \(sleepDeprivedData.filter { $0.value }.map { $0.key }.sorted())")
+                    
+                    // テストデータを追加
+                    self.addTestData()
                 }
             }
         }
@@ -379,6 +383,11 @@ struct HomeScreen: View {
                 DispatchQueue.main.async {
                     self.stepCountByDate = stepCountsByDateKey
                     print("✅ HomeScreen: \(stepCountsByDateKey.count)日分の歩数データを取得")
+                    
+                    // テストデータの歩数を再追加
+                    self.stepCountByDate["2025-11-01"] = 6000
+                    self.stepCountByDate["2025-11-11"] = 7500
+                    print("🧪 テストデータ（歩数）を再追加しました")
                 }
             }
         }
@@ -451,6 +460,30 @@ struct HomeScreen: View {
                 }
             }
         }
+    }
+    
+    // テストデータを追加（Firebaseデータに追加）
+    private func addTestData() {
+        print("🧪 テストデータを追加します")
+        
+        // 2025年11月1日: 青（hasRecord）、緑（hasFullCharge）、オレンジ（stepCount >= 5000）
+        hasRecordByDate.insert("2025-11-01")
+        hasFullChargeByDate.insert("2025-11-01")
+        stepCountByDate["2025-11-01"] = 6000
+        
+        // 2025年11月5日: 青（hasRecord）、黒（isSleepDeprived）
+        hasRecordByDate.insert("2025-11-05")
+        isSleepDeprivedByDate["2025-11-05"] = true
+        
+        // 2025年11月11日: 緑（hasFullCharge）、オレンジ（stepCount >= 5000）
+        hasFullChargeByDate.insert("2025-11-11")
+        stepCountByDate["2025-11-11"] = 7500
+        
+        print("✅ テストデータ追加完了")
+        print("   📊 最終的な記録: \(hasRecordByDate.sorted())")
+        print("   📊 最終的な全快: \(hasFullChargeByDate.sorted())")
+        print("   📊 最終的な寝不足: \(isSleepDeprivedByDate.filter { $0.value }.map { $0.key }.sorted())")
+        print("   📊 最終的な歩数データ: \(stepCountByDate.keys.sorted())")
     }
 }
 
