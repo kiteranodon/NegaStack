@@ -212,7 +212,8 @@ struct StackLog: View {
             ],
             thinkings: ["これはテストデータです", "実際の記録はLogJournalから作成してください"],
             isSleepDeprived: true,
-            usePhone: true,
+            nextTask: "レポート作成",
+            taskDurationMinutes: 120,
             restActivity: "音楽を聴いてリラックス",
             alarmTime: Date().addingTimeInterval(3600),
             actionType: "rest"
@@ -389,6 +390,47 @@ struct JournalEntryCard: View {
                         .foregroundColor(Color(hex: "999999"))
                     ForEach(entry.thinkings, id: \.self) { thinking in
                         Text("• \(thinking)")
+                            .font(.system(size: 13))
+                            .foregroundColor(.primary)
+                    }
+                }
+            }
+            
+            // 次のタスク
+            if !entry.nextTask.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("次のタスク")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Color(hex: "999999"))
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle")
+                            .font(.system(size: 12))
+                            .foregroundColor(primaryColor)
+                        Text(entry.nextTask)
+                            .font(.system(size: 13))
+                            .foregroundColor(.primary)
+                    }
+                }
+            }
+            
+            // タスク所要時間
+            if entry.taskDurationMinutes > 0 {
+                HStack(spacing: 6) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(hex: "FAA755"))
+                    let hours = entry.taskDurationMinutes / 60
+                    let minutes = entry.taskDurationMinutes % 60
+                    if hours > 0 && minutes > 0 {
+                        Text("所要時間: \(hours)時間\(minutes)分")
+                            .font(.system(size: 13))
+                            .foregroundColor(.primary)
+                    } else if hours > 0 {
+                        Text("所要時間: \(hours)時間")
+                            .font(.system(size: 13))
+                            .foregroundColor(.primary)
+                    } else {
+                        Text("所要時間: \(minutes)分")
                             .font(.system(size: 13))
                             .foregroundColor(.primary)
                     }

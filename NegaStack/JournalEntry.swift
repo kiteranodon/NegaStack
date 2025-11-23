@@ -17,7 +17,8 @@ struct JournalEntry: Codable {
     var emotions: [EmotionEntry]
     var thinkings: [String]
     var isSleepDeprived: Bool? // 寝不足かどうか
-    var usePhone: Bool?
+    var nextTask: String // 今からしなければいけないこと
+    var taskDurationMinutes: Int // 所要時間（分単位）
     var restActivity: String
     var alarmTime: Date?
     var actionType: String // "rest" or "quickStart"
@@ -44,6 +45,8 @@ struct JournalEntry: Codable {
             "negativeFeeling": negativeFeeling,
             "emotions": emotions.map { ["name": $0.name, "colorHex": $0.colorHex] },
             "thinkings": thinkings,
+            "nextTask": nextTask,
+            "taskDurationMinutes": taskDurationMinutes,
             "restActivity": restActivity,
             "actionType": actionType
         ]
@@ -51,10 +54,6 @@ struct JournalEntry: Codable {
         // オプショナルの値を適切に処理
         if let isSleepDeprived = isSleepDeprived {
             dict["isSleepDeprived"] = isSleepDeprived
-        }
-        
-        if let usePhone = usePhone {
-            dict["usePhone"] = usePhone
         }
         
         if let alarmTime = alarmTime {
@@ -87,8 +86,11 @@ struct JournalEntry: Codable {
         self.restActivity = restActivity
         self.actionType = actionType
         
+        // nextTaskとtaskDurationMinutesはデフォルト値を設定（後方互換性のため）
+        self.nextTask = dictionary["nextTask"] as? String ?? ""
+        self.taskDurationMinutes = dictionary["taskDurationMinutes"] as? Int ?? 0
+        
         self.isSleepDeprived = dictionary["isSleepDeprived"] as? Bool
-        self.usePhone = dictionary["usePhone"] as? Bool
         
         if let alarmTimestamp = dictionary["alarmTime"] as? Timestamp {
             self.alarmTime = alarmTimestamp.dateValue()
@@ -101,7 +103,8 @@ struct JournalEntry: Codable {
          emotions: [EmotionEntry],
          thinkings: [String],
          isSleepDeprived: Bool?,
-         usePhone: Bool?,
+         nextTask: String,
+         taskDurationMinutes: Int,
          restActivity: String,
          alarmTime: Date?,
          actionType: String) {
@@ -110,7 +113,8 @@ struct JournalEntry: Codable {
         self.emotions = emotions
         self.thinkings = thinkings
         self.isSleepDeprived = isSleepDeprived
-        self.usePhone = usePhone
+        self.nextTask = nextTask
+        self.taskDurationMinutes = taskDurationMinutes
         self.restActivity = restActivity
         self.alarmTime = alarmTime
         self.actionType = actionType

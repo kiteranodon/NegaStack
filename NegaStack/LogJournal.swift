@@ -34,7 +34,9 @@ struct LogJournal: View {
     @State private var selectedThinkings: [String] = []
     @State private var customThinking: String = ""
     @State private var isSleepDeprived: Bool? = nil // true: はい, false: いいえ, nil: 未選択
-    @State private var usePhone: Bool? = nil // true: 使う, false: 使わない, nil: 未選択
+    @State private var nextTask: String = "" // 今からしなければいけないこと
+    @State private var taskDurationHours: Int = 0 // 所要時間（時間）
+    @State private var taskDurationMinutes: Int = 30 // 所要時間（分）
     @State private var restActivity: String = ""
     @State private var alarmTime: Date = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date()
     @State private var showTimerPicker: Bool = false
@@ -421,54 +423,62 @@ struct LogJournal: View {
                             .font(.system(size: 22, weight: .semibold))
                             .foregroundColor(primaryColor)
                         
-                        // スマホの使用選択
+                        // 今からしなければいけないことは？
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("スマホは？")
+                            Text("今からしなければいけないことは？")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.gray)
+                                .padding(.horizontal, 30)
+                            
+                            TextField("例: レポート作成、買い物、メール返信", text: $nextTask)
+                                .font(.system(size: 16))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(Color.white)
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                )
+                                .padding(.horizontal, 30)
+                        }
+                        
+                        // しなければいけないことの所要時間の予想は？
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("しなければいけないことの所要時間の予想は？")
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(.gray)
                                 .padding(.horizontal, 30)
                             
                             HStack(spacing: 16) {
-                                // 使うボタン
-                                Button(action: {
-                                    usePhone = true
-                                }) {
-                                    HStack {
-                                        Image(systemName: usePhone == true ? "checkmark.circle.fill" : "circle")
-                                            .font(.system(size: 24))
-                                        Text("使う")
-                                            .font(.system(size: 18, weight: .medium))
+                                // 時間ピッカー
+                                HStack(spacing: 8) {
+                                    Picker("時間", selection: $taskDurationHours) {
+                                        ForEach(0..<24) { hour in
+                                            Text("\(hour)").tag(hour)
+                                        }
                                     }
-                                    .foregroundColor(usePhone == true ? primaryColor : .gray)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                    .background(usePhone == true ? primaryColor.opacity(0.1) : Color.white)
-                                    .cornerRadius(12)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(usePhone == true ? primaryColor : Color.gray.opacity(0.3), lineWidth: 2)
-                                    )
+                                    .pickerStyle(.wheel)
+                                    .frame(width: 80, height: 120)
+                                    
+                                    Text("時間")
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(.primary)
                                 }
                                 
-                                // 使わないボタン
-                                Button(action: {
-                                    usePhone = false
-                                }) {
-                                    HStack {
-                                        Image(systemName: usePhone == false ? "checkmark.circle.fill" : "circle")
-                                            .font(.system(size: 24))
-                                        Text("使わない")
-                                            .font(.system(size: 18, weight: .medium))
+                                // 分ピッカー
+                                HStack(spacing: 8) {
+                                    Picker("分", selection: $taskDurationMinutes) {
+                                        ForEach([0, 15, 30, 45], id: \.self) { minute in
+                                            Text("\(minute)").tag(minute)
+                                        }
                                     }
-                                    .foregroundColor(usePhone == false ? primaryColor : .gray)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                    .background(usePhone == false ? primaryColor.opacity(0.1) : Color.white)
-                                    .cornerRadius(12)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(usePhone == false ? primaryColor : Color.gray.opacity(0.3), lineWidth: 2)
-                                    )
+                                    .pickerStyle(.wheel)
+                                    .frame(width: 80, height: 120)
+                                    
+                                    Text("分")
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(.primary)
                                 }
                             }
                             .padding(.horizontal, 30)
@@ -476,7 +486,7 @@ struct LogJournal: View {
                         
                         // 何をして休む？
                         VStack(alignment: .leading, spacing: 12) {
-                            Text(usePhone == true ? "スマホで何をして休む？" : usePhone == false ? "何をして休む？" : "何をして休む？")
+                            Text("スマホ休憩では何をして過ごす？")
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(.gray)
                                 .padding(.horizontal, 30)
@@ -496,7 +506,7 @@ struct LogJournal: View {
                         
                         // アラーム時間設定
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("いつまで休む？")
+                            Text("やるべきことの所要時間を踏まえ、今からスマホ休憩をどれくらい取る？")
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(.gray)
                                 .padding(.horizontal, 30)
@@ -719,7 +729,7 @@ struct LogJournal: View {
         return !negativeFeeling.isEmpty &&
                selectedEmotions.count > 0 &&
                selectedThinkings.count > 0 &&
-               usePhone != nil &&
+               !nextTask.isEmpty &&
                !restActivity.isEmpty
     }
     
@@ -793,7 +803,8 @@ struct LogJournal: View {
         print("ネガティブな気持ち: \(negativeFeeling)")
         print("選択した感情: \(selectedEmotions.map { $0.name })")
         print("何について: \(selectedThinkings)")
-        print("スマホ使用: \(usePhone == true ? "使う" : "使わない")")
+        print("次のタスク: \(nextTask)")
+        print("タスク所要時間: \(taskDurationHours)時間\(taskDurationMinutes)分")
         print("休憩方法: \(restActivity)")
     }
     
@@ -914,13 +925,15 @@ struct LogJournal: View {
         }
         
         // JournalEntryを作成
+        let totalMinutes = taskDurationHours * 60 + taskDurationMinutes
         let entry = JournalEntry(
             date: Date(),
             negativeFeeling: negativeFeeling,
             emotions: emotionEntries,
             thinkings: selectedThinkings,
             isSleepDeprived: isSleepDeprived,
-            usePhone: usePhone,
+            nextTask: nextTask,
+            taskDurationMinutes: totalMinutes,
             restActivity: restActivity,
             alarmTime: actionType == "rest" ? alarmTime : nil,
             actionType: actionType
